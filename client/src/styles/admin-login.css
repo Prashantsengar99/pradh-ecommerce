@@ -1,0 +1,374 @@
+
+/* ============================================
+   ADMIN LOGIN — PREMIUM
+   ============================================ */
+
+.admin-login-page {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    background: #0f172a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-login-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        radial-gradient(ellipse at 20% 50%, rgba(250, 204, 21, 0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 50%, rgba(139, 92, 246, 0.04) 0%, transparent 60%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.admin-login-page .glow-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+    animation: adminOrbPulse 6s ease-in-out infinite;
+}
+
+.admin-login-page .glow-orb.orb-1 {
+    width: 300px;
+    height: 300px;
+    background: rgba(250, 204, 21, 0.06);
+    top: -100px;
+    right: -100px;
+}
+
+.admin-login-page .glow-orb.orb-2 {
+    width: 250px;
+    height: 250px;
+    background: rgba(139, 92, 246, 0.05);
+    bottom: -80px;
+    left: -80px;
+    animation-delay: -3s;
+}
+
+@keyframes adminOrbPulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 1; }
+}
+
+/* Container */
+.admin-login-container {
+    background: rgba(30, 41, 59, 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    padding: 48px 40px 36px;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    width: 100%;
+    max-width: 420px;
+    box-shadow:
+        0 25px 80px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    position: relative;
+    z-index: 1;
+    animation: adminContainerFade 0.6s ease-out;
+}
+
+@keyframes adminContainerFade {
+    from { opacity: 0; transform: translateY(30px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Logo */
+.admin-login-container .admin-logo {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.admin-login-container .admin-logo .shield-icon {
+    font-size: 48px;
+    color: #facc15;
+    display: inline-block;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 4px 20px rgba(250, 204, 21, 0.15));
+}
+
+.admin-login-container .admin-logo h1 {
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.admin-login-container .admin-logo h1 span {
+    background: linear-gradient(135deg, #facc15, #f59e0b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.admin-login-container .admin-logo p {
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.admin-login-container .admin-logo .sub-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    background: rgba(250, 204, 21, 0.08);
+    border: 1px solid rgba(250, 204, 21, 0.1);
+    border-radius: 50px;
+    font-size: 11px;
+    color: #facc15;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+}
+
+/* Form */
+.admin-login-container .form-group {
+    margin-bottom: 18px;
+}
+
+.admin-login-container .form-group label {
+    display: block;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+}
+
+.admin-login-container .form-group label i {
+    margin-right: 6px;
+    color: #facc15;
+}
+
+.admin-login-container .form-group input {
+    width: 100%;
+    padding: 14px 16px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    color: #ffffff;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.admin-login-container .form-group input:focus {
+    outline: none;
+    border-color: #facc15;
+    box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.08);
+    background: rgba(15, 23, 42, 0.8);
+}
+
+.admin-login-container .form-group input::placeholder {
+    color: #64748b;
+}
+
+/* Password toggle */
+.admin-login-container .password-wrapper {
+    position: relative;
+}
+
+.admin-login-container .password-wrapper input {
+    padding-right: 48px;
+}
+
+.admin-login-container .password-toggle {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.3s;
+    padding: 4px;
+}
+
+.admin-login-container .password-toggle:hover {
+    color: #facc15;
+}
+
+/* Login button */
+.admin-login-container .login-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #facc15, #eab308);
+    color: #0f172a;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.admin-login-container .login-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 35px rgba(250, 204, 21, 0.3);
+}
+
+.admin-login-container .login-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.admin-login-container .login-btn .spinner {
+    animation: adminSpin 0.8s linear infinite;
+}
+
+@keyframes adminSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error message */
+.admin-login-container .error-msg {
+    color: #ef4444;
+    text-align: center;
+    margin-top: 14px;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px;
+    background: rgba(239, 68, 68, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.1);
+    animation: adminShake 0.4s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+@keyframes adminShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+}
+
+/* Success message */
+.admin-login-container .success-msg {
+    color: #22c55e;
+    text-align: center;
+    margin-top: 14px;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px;
+    background: rgba(34, 197, 94, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(34, 197, 94, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* Footer */
+.admin-login-container .footer-text {
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.admin-login-container .footer-text .lock-icon {
+    color: #22c55e;
+    margin-right: 4px;
+}
+
+.admin-login-container .footer-text a {
+    color: #facc15;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.admin-login-container .footer-text a:hover {
+    color: #f59e0b;
+}
+
+/* Attempts counter */
+.admin-login-container .attempts-counter {
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+.admin-login-container .attempts-counter .count {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .admin-login-container {
+        padding: 32px 20px 24px;
+        border-radius: 20px;
+        margin: 10px;
+    }
+
+    .admin-login-container .admin-logo h1 {
+        font-size: 24px;
+    }
+
+    .admin-login-container .admin-logo .shield-icon {
+        font-size: 36px;
+    }
+
+    .admin-login-container .form-group input {
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+
+    .admin-login-container .login-btn {
+        padding: 14px;
+        font-size: 16px;
+    }
+
+    .admin-login-page .glow-orb.orb-1 {
+        width: 150px;
+        height: 150px;
+        right: -50px;
+    }
+
+    .admin-login-page .glow-orb.orb-2 {
+        width: 120px;
+        height: 120px;
+        left: -40px;
+    }
+}
+
+@media (max-width: 360px) {
+    .admin-login-container {
+        padding: 24px 14px 18px;
+    }
+
+    .admin-login-container .admin-logo h1 {
+        font-size: 20px;
+    }
+}

@@ -1,0 +1,39 @@
+/* ============================================
+   FOOTER
+   ============================================ */
+footer {
+    background: rgba(15, 23, 42, 0.95);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    padding: 24px 16px;
+}
+
+.footer-content {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+
+.footer-content p {
+    color: var(--text-muted);
+    font-size: clamp(13px, 1vw, 15px);
+}
+
+.footer-content p span {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.footer-content .feedback-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: clamp(13px, 1vw, 15px);
+    transition: var(--transition);
+}
+
+.footer-content .feedback-link:hover {
+    color: var(--primary);
+}
