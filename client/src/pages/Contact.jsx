@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/api';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -63,7 +64,7 @@ const Contact = () => {
     // Fetch user orders for dropdown
     const fetchOrders = async () => {
       try {
-        const res = await fetch('/api/auth/orders', {
+        const res = await apiFetch('/api/auth/orders', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -95,7 +96,7 @@ const Contact = () => {
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/return-requests', {
+      const res = await apiFetch('/api/return-requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

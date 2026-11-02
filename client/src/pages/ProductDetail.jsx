@@ -1,10 +1,11 @@
+import { apiFetch } from '../services/api';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   FaSearchPlus, FaCheckCircle, FaTruck, FaMoneyBillWave, FaUndo, FaShieldAlt,
   FaMinus, FaPlus, FaShoppingCart, FaShoppingBag, FaPen, FaPaperPlane,
   FaSpinner, FaComment, FaCalendarAlt, FaTimesCircle, FaExclamationTriangle,
-  FaTimes, FaChevronLeft, FaChevronRight, FaExpand, FaCompress,
+  FaTimes, FaChevronLeft, FaChevronRight, FaExpand,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import '/src/styles/product-detail.css';
@@ -81,7 +82,6 @@ const ProductDetail = () => {
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
 
-  // ✅ NEW: Image zoom + fullscreen state
   const [isZooming, setIsZooming] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 });
   const [showFullscreen, setShowFullscreen] = useState(false);
@@ -90,12 +90,11 @@ const ProductDetail = () => {
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
 
-  // ============ LOAD PRODUCT ============
   useEffect(() => {
     const loadProduct = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/admin/products');
+        const res = await apiFetch('/api/admin/products');
         const data = await res.json();
         if (data.success && data.products) {
           const found = data.products.find((p) => (p.id || p._id) === id);
@@ -136,12 +135,11 @@ const ProductDetail = () => {
     loadProduct();
   }, [id]);
 
-  // ============ LOAD REVIEWS ============
   const fetchReviews = async () => {
     if (!id) return;
     setReviewsLoading(true);
     try {
-      const res = await fetch(`/api/reviews/product/${id}`);
+      const res = await apiFetch(`/api/reviews/product/${id}`);
       const data = await res.json();
       if (data.success) {
         const normalized = (data.reviews || []).map((r) => ({
@@ -169,12 +167,11 @@ const ProductDetail = () => {
 
   useEffect(() => { fetchReviews(); }, [id]);
 
-  // ============ LOAD RELATED ============
   useEffect(() => {
     if (!product) return;
     const loadRelated = async () => {
       try {
-        const res = await fetch('/api/admin/products');
+        const res = await apiFetch('/api/admin/products');
         const data = await res.json();
         if (data.success && data.products) {
           const related = data.products
@@ -195,7 +192,6 @@ const ProductDetail = () => {
     loadRelated();
   }, [product]);
 
-  // ============ SCROLL LOCK ============
   useEffect(() => {
     if (showReviewModal || showFullscreen) {
       document.body.style.overflow = 'hidden';
@@ -205,7 +201,6 @@ const ProductDetail = () => {
     return () => { document.body.style.overflow = 'unset'; };
   }, [showReviewModal, showFullscreen]);
 
-  // ============ ZOOM HANDLERS ============
   const handleMouseMove = (e) => {
     if (!imageContainerRef.current) return;
     const rect = imageContainerRef.current.getBoundingClientRect();
@@ -222,7 +217,6 @@ const ProductDetail = () => {
     setIsZooming(false);
   };
 
-  // ============ FULLSCREEN HANDLERS ============
   const openFullscreen = (index) => {
     setFullscreenIndex(index);
     setShowFullscreen(true);
@@ -240,7 +234,6 @@ const ProductDetail = () => {
     setFullscreenIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
   };
 
-  // ============ SWIPE HANDLERS (mobile) ============
   const handleTouchStart = (e) => {
     touchStartX.current = e.changedTouches[0].screenX;
   };
@@ -256,14 +249,12 @@ const ProductDetail = () => {
     if (Math.abs(diff) < 50) return;
 
     if (diff > 0) {
-      // Swipe left → next image
       if (showFullscreen) {
         nextImage();
       } else {
         setActiveImage((prev) => (prev + 1) % product.images.length);
       }
     } else {
-      // Swipe right → prev image
       if (showFullscreen) {
         prevImage();
       } else {
@@ -274,7 +265,6 @@ const ProductDetail = () => {
     touchEndX.current = null;
   };
 
-  // ============ ADD TO CART ============
   const handleAddToCart = () => {
     if (!product || product.stock <= 0) return;
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
@@ -297,14 +287,13 @@ const ProductDetail = () => {
     setQuantity(1);
   };
 
-  // ============ SUBMIT REVIEW ============
   const handleSubmitReview = async () => {
     if (selectedRating === 0) { setReviewMessage('❌ Please select a rating'); return; }
     if (!reviewComment.trim()) { setReviewMessage('❌ Please write a review'); return; }
 
     setSubmittingReview(true);
     try {
-      const res = await fetch('/api/reviews', {
+      const res = await apiFetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -337,21 +326,21 @@ const ProductDetail = () => {
     }
   };
 
-  // ============ LOADING ============
   if (loading) {
     return (
-      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <FaSpinner style={{ fontSize: '40px', color: 'var(--primary)' }} className="fa-spin" />
+      <div className="pd-loading-state">
+        <FaSpinner className="fa-spin" />
+        <p>Loading product...</p>
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '80px 20px', textAlign: 'center' }}>
-        <FaExclamationTriangle style={{ fontSize: '48px', color: 'var(--primary)', marginBottom: '16px' }} />
-        <h1 style={{ fontSize: '28px', color: '#fff', marginBottom: '8px' }}>Product Not Found</h1>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>The product you're looking for doesn't exist.</p>
+      <div className="pd-not-found">
+        <FaExclamationTriangle />
+        <h1>Product Not Found</h1>
+        <p>The product you're looking for doesn't exist.</p>
         <Link to="/products" className="btn-primary">Back to Products</Link>
       </div>
     );
@@ -380,7 +369,7 @@ const ProductDetail = () => {
   ];
 
   return (
-    <>
+    <div className="pd-page">
       {/* BREADCRUMB */}
       <div className="breadcrumb">
         <Link to="/">Home</Link> &gt; <Link to="/products">Products</Link> &gt; <span>{product.name}</span>
@@ -390,7 +379,6 @@ const ProductDetail = () => {
       <main className="p-detail-container">
         {/* LEFT — IMAGE GALLERY */}
         <div className="p-image-section">
-          {/* Main Image with Zoom */}
           <div
             className="main-image-wrapper"
             ref={imageContainerRef}
@@ -416,39 +404,38 @@ const ProductDetail = () => {
               }
             />
 
-            {/* Zoom hint */}
             <div className={`zoom-hint ${isZooming ? 'hidden' : ''}`}>
               <FaSearchPlus /> Hover to zoom · Click to expand
             </div>
 
-            {/* Fullscreen button */}
             <button
               className="fullscreen-btn"
               onClick={() => openFullscreen(activeImage)}
               title="View fullscreen"
+              aria-label="View fullscreen"
             >
               <FaExpand />
             </button>
 
-            {/* Mobile swipe arrows */}
             {product.images.length > 1 && (
               <>
                 <button
                   className="mobile-nav-arrow left"
                   onClick={() => setActiveImage((prev) => (prev - 1 + product.images.length) % product.images.length)}
+                  aria-label="Previous image"
                 >
                   <FaChevronLeft />
                 </button>
                 <button
                   className="mobile-nav-arrow right"
                   onClick={() => setActiveImage((prev) => (prev + 1) % product.images.length)}
+                  aria-label="Next image"
                 >
                   <FaChevronRight />
                 </button>
               </>
             )}
 
-            {/* Image counter */}
             {product.images.length > 1 && (
               <div className="image-counter">
                 {activeImage + 1} / {product.images.length}
@@ -473,6 +460,7 @@ const ProductDetail = () => {
 
         {/* RIGHT — INFO */}
         <div className="p-info-section">
+          <span className="p-category-tag">{product.category}</span>
           <h1 className="p-title">{product.name}</h1>
 
           <div className="p-rating-summary">
@@ -484,7 +472,7 @@ const ProductDetail = () => {
                 </span>
               </>
             ) : (
-              <span className="count" style={{ color: 'var(--text-muted)' }}>No reviews yet</span>
+              <span className="count no-reviews">No reviews yet</span>
             )}
             <span className="verified-badge"><FaCheckCircle /> Verified Seller</span>
           </div>
@@ -517,9 +505,9 @@ const ProductDetail = () => {
 
           <div className="p-actions">
             <div className="quantity-selector">
-              <button onClick={() => setQuantity((q) => Math.max(1, q - 1))}><FaMinus /></button>
+              <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label="Decrease"><FaMinus /></button>
               <span>{quantity}</span>
-              <button onClick={() => setQuantity((q) => Math.min(product.stock || 99, q + 1))}><FaPlus /></button>
+              <button onClick={() => setQuantity((q) => Math.min(product.stock || 99, q + 1))} aria-label="Increase"><FaPlus /></button>
             </div>
 
             <button className="btn-primary" onClick={handleAddToCart} disabled={!inStock}>
@@ -534,10 +522,10 @@ const ProductDetail = () => {
           <div className="p-tabs">
             <div className="p-tabs-nav">
               <button className={activeTab === 'specs' ? 'active' : ''} onClick={() => setActiveTab('specs')}>
-                📋 Specifications
+                Specifications
               </button>
               <button className={activeTab === 'faq' ? 'active' : ''} onClick={() => setActiveTab('faq')}>
-                ❓ FAQs
+                FAQs
               </button>
             </div>
 
@@ -552,7 +540,7 @@ const ProductDetail = () => {
                 </table>
               )}
               {activeTab === 'faq' && (
-                <div>
+                <div className="faq-list">
                   {FAQS.map((faq, i) => (
                     <div key={i} className={`faq-item ${openFaq === i ? 'active' : ''}`}>
                       <button className="faq-question" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
@@ -569,7 +557,7 @@ const ProductDetail = () => {
         </div>
       </main>
 
-      {/* ===== FULLSCREEN IMAGE VIEWER ===== */}
+      {/* FULLSCREEN IMAGE VIEWER */}
       {showFullscreen && (
         <div
           className="fullscreen-overlay"
@@ -577,7 +565,7 @@ const ProductDetail = () => {
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          <button className="fullscreen-close" onClick={closeFullscreen}>
+          <button className="fullscreen-close" onClick={closeFullscreen} aria-label="Close">
             <FaTimes />
           </button>
 
@@ -585,6 +573,7 @@ const ProductDetail = () => {
             className="fullscreen-nav prev"
             onClick={(e) => { e.stopPropagation(); prevImage(); }}
             disabled={product.images.length <= 1}
+            aria-label="Previous"
           >
             <FaChevronLeft />
           </button>
@@ -601,6 +590,7 @@ const ProductDetail = () => {
             className="fullscreen-nav next"
             onClick={(e) => { e.stopPropagation(); nextImage(); }}
             disabled={product.images.length <= 1}
+            aria-label="Next"
           >
             <FaChevronRight />
           </button>
@@ -624,7 +614,7 @@ const ProductDetail = () => {
         </div>
       )}
 
-      {/* ===== REVIEWS SECTION ===== */}
+      {/* REVIEWS SECTION */}
       <section className="reviews-section-full">
         <div className="reviews-header">
           <h2>Customer <span>Reviews</span></h2>
@@ -663,9 +653,9 @@ const ProductDetail = () => {
         </div>
 
         {reviewsLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-            <FaSpinner className="fa-spin" style={{ fontSize: '24px' }} />
-            <p style={{ marginTop: '10px' }}>Loading reviews...</p>
+          <div className="reviews-loading">
+            <FaSpinner className="fa-spin" />
+            <p>Loading reviews...</p>
           </div>
         ) : reviews.length === 0 ? (
           <div className="no-reviews-full">
@@ -701,16 +691,16 @@ const ProductDetail = () => {
         )}
       </section>
 
-      {/* ===== REVIEW MODAL ===== */}
+      {/* REVIEW MODAL */}
       {showReviewModal && (
         <div className="review-modal-overlay" onClick={() => setShowReviewModal(false)}>
           <div className="review-modal" onClick={(e) => e.stopPropagation()}>
             <div className="review-modal-header">
               <div>
-                <h2><FaPen style={{ color: 'var(--primary)' }} /> Write a Review</h2>
+                <h2><FaPen className="modal-pen-icon" /> Write a Review</h2>
                 <p>Share your experience with {product.name}</p>
               </div>
-              <button className="modal-close-btn" onClick={() => setShowReviewModal(false)}>
+              <button className="modal-close-btn" onClick={() => setShowReviewModal(false)} aria-label="Close">
                 <FaTimes />
               </button>
             </div>
@@ -759,10 +749,7 @@ const ProductDetail = () => {
             </div>
 
             {reviewMessage && (
-              <div style={{
-                color: reviewMessage.startsWith('✅') ? '#22c55e' : '#ef4444',
-                fontSize: '13px', marginBottom: '12px', fontWeight: '600',
-              }}>
+              <div className={`review-message ${reviewMessage.startsWith('✅') ? 'success' : 'error'}`}>
                 {reviewMessage}
               </div>
             )}
@@ -779,14 +766,16 @@ const ProductDetail = () => {
         </div>
       )}
 
-      {/* RELATED */}
+      {/* RELATED PRODUCTS */}
       {relatedProducts.length > 0 && (
         <section className="related-products">
           <h2>You Might Also <span>Like</span></h2>
           <div className="related-grid">
             {relatedProducts.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} className="related-card">
-                <img src={p.image} alt={p.name} loading="lazy" onError={(e) => (e.target.src = '/product1.jpeg')} />
+                <div className="related-img-wrap">
+                  <img src={p.image} alt={p.name} loading="lazy" onError={(e) => (e.target.src = '/product1.jpeg')} />
+                </div>
                 <div className="info">
                   <h4>{p.name}</h4>
                   <div className="price">₹{p.price}</div>
@@ -796,7 +785,7 @@ const ProductDetail = () => {
           </div>
         </section>
       )}
-    </>
+    </div>
   );
 };
 

@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/api';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -55,9 +56,9 @@ const AdminPanel = () => {
   const loadDashboard = async () => {
     try {
       const [prodRes, orderRes, reviewRes] = await Promise.all([
-        fetch('/api/admin/products'),
+        apiFetch('/api/admin/products'),
         fetch('/get-orders'),
-        fetch('/api/reviews'),
+        apiFetch('/api/reviews'),
       ]);
       const prodData = await prodRes.json();
       if (prodData.success) setProducts(prodData.products || []);
@@ -70,7 +71,7 @@ const AdminPanel = () => {
 
   const loadProducts = async () => {
     try {
-      const res = await fetch('/api/admin/products');
+      const res = await apiFetch('/api/admin/products');
       const data = await res.json();
       if (data.success) setProducts(data.products || []);
     } catch (err) { console.error(err); }
@@ -86,7 +87,7 @@ const AdminPanel = () => {
 
   const loadCoupons = async () => {
     try {
-      const res = await fetch('/api/coupons');
+      const res = await apiFetch('/api/coupons');
       const data = await res.json();
       if (data.success) setCoupons(data.coupons || []);
     } catch (err) { console.error(err); }
@@ -94,7 +95,7 @@ const AdminPanel = () => {
 
   const loadReviews = async () => {
     try {
-      const res = await fetch('/api/reviews');
+      const res = await apiFetch('/api/reviews');
       const data = await res.json();
       if (data.success) setReviews(data.reviews || []);
     } catch (err) { console.error(err); }
@@ -102,7 +103,7 @@ const AdminPanel = () => {
 
   const loadReturns = async () => {
   try {
-    const res = await fetch('/api/return-requests');
+    const res = await apiFetch('/api/return-requests');
     const data = await res.json();
     if (data.success) setReturnRequests(data.requests || []);
   } catch (err) { console.error(err); }
@@ -137,7 +138,7 @@ const AdminPanel = () => {
 
   const loadDeliverySettings = async () => {
     try {
-      const res = await fetch('/api/delivery-charge');
+      const res = await apiFetch('/api/delivery-charge');
       const data = await res.json();
       if (data.success) {
         setDeliveryCharge(data.deliveryCharge || 49);
@@ -219,7 +220,7 @@ const AdminPanel = () => {
   const deleteProduct = async (id) => {
     if (!window.confirm('Delete this product?')) return;
     try {
-      const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/admin/products/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         toast.success('Product deleted!');
@@ -233,7 +234,7 @@ const AdminPanel = () => {
   const updateOrderStatus = async (orderId, status) => {
     if (!window.confirm(`Update order status to "${status}"?`)) return;
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await apiFetch(`/api/orders/${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -257,7 +258,7 @@ const AdminPanel = () => {
       return;
     }
     try {
-      const res = await fetch('/api/coupons', {
+      const res = await apiFetch('/api/coupons', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, discount: parseInt(discount), expiry: couponForm.expiry }),
@@ -276,7 +277,7 @@ const AdminPanel = () => {
   const deleteCoupon = async (code) => {
     if (!window.confirm(`Delete coupon "${code}"?`)) return;
     try {
-      const res = await fetch(`/api/coupons/${code}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/coupons/${code}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         toast.success('Coupon deleted!');
@@ -290,7 +291,7 @@ const AdminPanel = () => {
   const updateReviewStatus = async (id, status) => {
     if (!window.confirm(`Are you sure you want to ${status} this review?`)) return;
     try {
-      const res = await fetch(`/api/reviews/${id}`, {
+      const res = await apiFetch(`/api/reviews/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -306,7 +307,7 @@ const AdminPanel = () => {
   const deleteReview = async (id) => {
     if (!window.confirm('Delete this review?')) return;
     try {
-      const res = await fetch(`/api/reviews/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/reviews/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         toast.success('Review deleted!');
@@ -320,7 +321,7 @@ const AdminPanel = () => {
 const updateReturnStatus = async (id, status) => {
   if (!window.confirm(`Mark this request as "${status}"?`)) return;
   try {
-    const res = await fetch(`/api/return-requests/${id}`, {
+    const res = await apiFetch(`/api/return-requests/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -336,7 +337,7 @@ const updateReturnStatus = async (id, status) => {
 const deleteReturn = async (id) => {
   if (!window.confirm('Delete this request?')) return;
   try {
-    const res = await fetch(`/api/return-requests/${id}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/return-requests/${id}`, { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {
       toast.success('Request deleted!');
@@ -354,7 +355,7 @@ const deleteReturn = async (id) => {
     }
     if (!window.confirm(`Set delivery charge to ₹${charge}?`)) return;
     try {
-      const res = await fetch('/api/delivery-charge', {
+      const res = await apiFetch('/api/delivery-charge', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ charge, freeThreshold }),
@@ -375,7 +376,7 @@ const deleteReturn = async (id) => {
     }
     if (!window.confirm(`Set free delivery for orders above ₹${threshold}?`)) return;
     try {
-      const res = await fetch('/api/delivery-charge', {
+      const res = await apiFetch('/api/delivery-charge', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ charge: deliveryCharge, freeThreshold: threshold }),

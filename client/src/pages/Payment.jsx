@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/api';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -47,7 +48,7 @@ const Payment = () => {
 
     const loadDeliverySettings = async () => {
       try {
-        const res = await fetch('/api/delivery-charge');
+        const res = await apiFetch('/api/delivery-charge');
         const data = await res.json();
         if (data.success) {
           setDeliverySettings({
@@ -101,7 +102,7 @@ const Payment = () => {
     }
 
     try {
-      const res = await fetch('/api/coupons/validate', {
+      const res = await apiFetch('/api/coupons/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, amount: subtotal }),

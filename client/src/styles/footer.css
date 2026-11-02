@@ -1,39 +1,299 @@
-/* ============================================
-   FOOTER
-   ============================================ */
-footer {
-    background: rgba(15, 23, 42, 0.95);
-    border-top: 1px solid rgba(255,255,255,0.04);
-    padding: 24px 16px;
+/* =====================================================================
+   PRADH DESI FUEL — FOOTER (Simple & Clean)
+   Warm Editorial Luxury Design System
+   ===================================================================== */
+
+:root {
+  --pf-cream: #F8F5EF;
+  --pf-beige: #E9DFD1;
+  --pf-brown: #8A5A3C;
+  --pf-chocolate: #39251B;
+  --pf-charcoal: #171512;
+  --pf-gold: #C49A45;
+  --pf-gold-soft: #D9B872;
+  --pf-gold-deep: #A67C2E;
+  --pf-font-display: 'Playfair Display', Georgia, serif;
+  --pf-font-body: 'Inter', sans-serif;
+  --pf-radius-sm: 10px;
+  --pf-radius-pill: 999px;
+  --pf-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --pf-dur: 0.3s;
 }
 
-.footer-content {
-    max-width: 1280px;
-    margin: 0 auto;
-    display: flex;
+/* =====================================================================
+   FOOTER BASE
+   ===================================================================== */
+.pf-footer {
+  background: linear-gradient(180deg, var(--pf-chocolate) 0%, var(--pf-charcoal) 100%);
+  color: var(--pf-cream);
+  font-family: var(--pf-font-body);
+}
+
+.pf-footer-accent {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--pf-gold) 50%, transparent);
+}
+
+/* =====================================================================
+   MAIN GRID
+   ===================================================================== */
+.pf-footer-main {
+  padding: 56px 24px 40px;
+}
+
+.pf-footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* =====================================================================
+   BRAND COLUMN
+   ===================================================================== */
+.pf-footer-brand-col {
+  max-width: 340px;
+}
+
+.pf-footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  margin-bottom: 18px;
+}
+
+.pf-footer-logo-mark {
+  height: 42px;
+  width: 42px;
+  border-radius: var(--pf-radius-sm);
+  background: linear-gradient(135deg, var(--pf-gold), var(--pf-gold-deep));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pf-chocolate);
+  font-family: var(--pf-font-display);
+  font-weight: 800;
+  font-size: 21px;
+}
+
+.pf-footer-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.pf-footer-logo-text .brand {
+  font-family: var(--pf-font-display);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--pf-cream);
+  white-space: nowrap;
+}
+
+.pf-footer-logo-text .brand span {
+  color: var(--pf-gold);
+}
+
+.pf-footer-logo-text .tagline {
+  font-size: 9px;
+  color: var(--pf-gold-soft);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.pf-footer-desc {
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(248, 245, 239, 0.6);
+  margin: 0 0 20px;
+}
+
+/* Social icons */
+.pf-footer-social {
+  display: flex;
+  gap: 10px;
+}
+
+.pf-social-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(248, 245, 239, 0.06);
+  border: 1px solid rgba(196, 154, 69, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pf-gold-soft);
+  font-size: 14px;
+  text-decoration: none;
+  transition: all var(--pf-dur) var(--pf-ease);
+}
+
+.pf-social-btn:hover {
+  background: var(--pf-gold);
+  color: var(--pf-chocolate);
+  transform: translateY(-2px);
+}
+
+/* =====================================================================
+   LINK COLUMNS
+   ===================================================================== */
+.pf-footer-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.pf-footer-heading {
+  font-family: var(--pf-font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pf-gold);
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  position: relative;
+}
+
+.pf-footer-heading::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 24px;
+  height: 2px;
+  background: var(--pf-gold);
+  border-radius: 2px;
+}
+
+.pf-footer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pf-footer-list li a {
+  font-size: 14px;
+  color: rgba(248, 245, 239, 0.6);
+  text-decoration: none;
+  transition: color var(--pf-dur) var(--pf-ease);
+}
+
+.pf-footer-list li a:hover {
+  color: var(--pf-gold);
+}
+
+/* =====================================================================
+   BOTTOM BAR
+   ===================================================================== */
+.pf-footer-bottom {
+  border-top: 1px solid rgba(196, 154, 69, 0.15);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.pf-footer-copy {
+  font-size: 13px;
+  color: rgba(248, 245, 239, 0.55);
+  margin: 0;
+}
+
+.pf-footer-copy span {
+  color: var(--pf-gold);
+  font-weight: 700;
+  font-family: var(--pf-font-display);
+}
+
+.pf-feedback-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border-radius: var(--pf-radius-pill);
+  background: rgba(196, 154, 69, 0.1);
+  border: 1px solid rgba(196, 154, 69, 0.3);
+  color: var(--pf-gold-soft);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--pf-dur) var(--pf-ease);
+}
+
+.pf-feedback-link:hover {
+  background: var(--pf-gold);
+  color: var(--pf-chocolate);
+  transform: translateY(-2px);
+}
+
+/* =====================================================================
+   RESPONSIVE — TABLET (768px)
+   ===================================================================== */
+@media (max-width: 768px) {
+  .pf-footer-main {
+    padding: 44px 20px 32px;
+  }
+
+  .pf-footer-inner {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+
+  .pf-footer-brand-col {
+    grid-column: 1 / -1;
+    max-width: none;
+    margin-bottom: 4px;
+  }
+
+  .pf-footer-bottom {
     flex-direction: column;
-    align-items: center;
-    gap: 12px;
     text-align: center;
+    gap: 12px;
+    padding: 18px 20px;
+  }
 }
 
-.footer-content p {
-    color: var(--text-muted);
-    font-size: clamp(13px, 1vw, 15px);
-}
+/* =====================================================================
+   RESPONSIVE — MOBILE (480px)
+   ===================================================================== */
+@media (max-width: 480px) {
+  .pf-footer-main {
+    padding: 36px 16px 28px;
+  }
 
-.footer-content p span {
-    color: var(--primary);
-    font-weight: 600;
-}
+  .pf-footer-inner {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
 
-.footer-content .feedback-link {
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: clamp(13px, 1vw, 15px);
-    transition: var(--transition);
-}
+  .pf-footer-logo-mark {
+    height: 38px;
+    width: 38px;
+    font-size: 19px;
+  }
 
-.footer-content .feedback-link:hover {
-    color: var(--primary);
+  .pf-footer-logo-text .brand {
+    font-size: 20px;
+  }
+
+  .pf-footer-desc {
+    font-size: 13px;
+  }
+
+  .pf-social-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
 }

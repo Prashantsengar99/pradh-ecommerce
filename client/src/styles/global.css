@@ -1,26 +1,92 @@
+/* =====================================================================
+   PRADH DESI FUEL — GLOBAL STYLES
+   Warm Editorial Luxury Design System
+   =====================================================================
+
+   NOTE: Load these fonts in your index.html <head> for full effect:
+   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500;1,600;1,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+   Variable strategy:
+   - All OLD variable names (--primary, --bg-dark, --text-light, etc.) are KEPT
+     and remapped to the new warm palette, so every existing page (products,
+     cart, account, etc.) automatically inherits the new theme without changes.
+   - New --pf-* tokens are added for the redesigned home/navbar/footer.
+   ===================================================================== */
+
 /* ============================================
-   CSS VARIABLES & RESET
+   CSS VARIABLES
    ============================================ */
 :root {
-    --primary: #facc15;
-    --primary-dark: #eab308;
-    --primary-glow: rgba(250, 204, 21, 0.3);
-    --bg-dark: #0f172a;
-    --bg-card: #1e293b;
-    --text-light: #f8fafc;
-    --text-muted: #94a3b8;
-    --border-color: #334155;
-    --shadow-glow: 0 8px 32px rgba(250, 204, 21, 0.15);
-    --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    --bg-card-hover: #2a3a4f;
-    --shadow: 0 8px 32px rgba(0,0,0,0.3);
-    --shadow-hover: 0 12px 48px rgba(0,0,0,0.5);
+    /* ---- LEGACY VARIABLES (remapped — kept for backward compatibility) ---- */
+    /* Old dark-theme names now point to the warm editorial luxury palette. */
+    --primary: #C49A45;                /* was #facc15 — now Luxury Gold */
+    --primary-dark: #A67C2E;           /* was #eab308 — now Gold Deep */
+    --primary-glow: rgba(196, 154, 69, 0.28);
+
+    --bg-dark: #F8F5EF;                /* was #0f172a — now Warm Cream (page bg) */
+    --bg-card: #FFFFFF;                /* was #1e293b — now White (card bg) */
+    --bg-card-hover: #F8F5EF;          /* was #2a3a4f — now Cream */
+
+    --text-light: #39251B;             /* was #f8fafc — now Deep Chocolate (main text) */
+    --text-muted: #8A7560;             /* was #94a3b8 — now warm muted brown */
+    --border-color: rgba(57, 37, 27, 0.10); /* was #334155 */
+
+    --shadow-glow: 0 8px 32px rgba(196, 154, 69, 0.18);
+    --shadow: 0 10px 30px rgba(57, 37, 27, 0.08);
+    --shadow-hover: 0 24px 60px rgba(57, 37, 27, 0.14);
+
+    --transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     --radius: 16px;
+
+    /* Social brand colors (kept as-is) */
     --whatsapp: #25D366;
     --instagram: #E4405F;
     --facebook: #1877F2;
+
+    /* ---- NEW DESIGN TOKENS (Warm Editorial Luxury) ---- */
+    --pf-cream: #F8F5EF;
+    --pf-beige: #E9DFD1;
+    --pf-sand: #D8C6B1;
+    --pf-brown: #8A5A3C;
+    --pf-chocolate: #39251B;
+    --pf-gold: #C49A45;
+    --pf-gold-soft: #D9B872;
+    --pf-gold-deep: #A67C2E;
+    --pf-charcoal: #171512;
+    --pf-white: #FFFFFF;
+
+    --pf-text: #39251B;
+    --pf-text-soft: #5C4A3D;
+    --pf-text-muted: #8A7560;
+    --pf-border: rgba(57, 37, 27, 0.10);
+    --pf-border-strong: rgba(57, 37, 27, 0.18);
+
+    /* Text-on-dark helper (for chocolate/charcoal backgrounds) */
+    --text-on-dark: #F8F5EF;
+    /* Text-on-gold helper (for gold backgrounds) */
+    --text-on-gold: #39251B;
+
+    --pf-font-display: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+    --pf-font-body: 'Inter', 'Manrope', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    --pf-radius-sm: 10px;
+    --pf-radius: 16px;
+    --pf-radius-lg: 24px;
+    --pf-radius-xl: 32px;
+    --pf-radius-pill: 999px;
+
+    --pf-shadow-sm: 0 2px 8px rgba(57, 37, 27, 0.06);
+    --pf-shadow: 0 10px 30px rgba(57, 37, 27, 0.08);
+    --pf-shadow-lg: 0 24px 60px rgba(57, 37, 27, 0.14);
+    --pf-shadow-gold: 0 16px 40px rgba(196, 154, 69, 0.25);
+
+    --pf-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --pf-dur: 0.4s;
 }
 
+/* ============================================
+   RESET
+   ============================================ */
 * {
     margin: 0;
     padding: 0;
@@ -28,11 +94,14 @@
 }
 
 body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: var(--bg-dark);
-    color: var(--text-light);
+    font-family: var(--pf-font-body);
+    background: var(--pf-cream);
+    color: var(--pf-chocolate);
     overflow-x: hidden;
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
 }
 
 a {
@@ -46,16 +115,64 @@ img {
     display: block;
 }
 
+button {
+    font-family: inherit;
+    cursor: pointer;
+}
+
+input, textarea, select {
+    font-family: inherit;
+}
+
+/* Headings use Playfair Display by default */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--pf-font-display);
+    font-weight: 700;
+    color: var(--pf-chocolate);
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+}
+
+/* Selection color */
+::selection {
+    background: rgba(196, 154, 69, 0.25);
+    color: var(--pf-chocolate);
+}
+
+/* Focus visible — accessible gold outline */
+*:focus-visible {
+    outline: 2px solid var(--pf-gold);
+    outline-offset: 2px;
+}
+
 /* ============================================
    SCROLLBAR
    ============================================ */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-dark); }
-::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 10px;
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--primary-dark); }
+
+::-webkit-scrollbar-track {
+    background: var(--pf-beige);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--pf-brown);
+    border-radius: 10px;
+    border: 2px solid var(--pf-beige);
+    transition: background var(--pf-dur) var(--pf-ease);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--pf-gold-deep);
+}
+
+/* Firefox scrollbar */
+html {
+    scrollbar-color: var(--pf-brown) var(--pf-beige);
+    scrollbar-width: thin;
+}
 
 /* ============================================
    ANIMATIONS (Global)
@@ -68,6 +185,11 @@ img {
 @keyframes fadeInDown {
     from { opacity: 0; transform: translateY(-20px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @keyframes pulseGlow {
@@ -96,11 +218,26 @@ img {
     to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes slideInLeft {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
 @keyframes floatParticle {
     0% { transform: translateY(0) rotate(0deg); opacity: 0; }
     10% { opacity: 0.3; }
     90% { opacity: 0.3; }
     100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 /* ============================================
@@ -109,7 +246,7 @@ img {
 .animate-on-scroll {
     opacity: 0;
     transform: translateY(40px);
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.8s var(--pf-ease), transform 0.8s var(--pf-ease);
 }
 
 .animate-on-scroll.visible {
@@ -125,35 +262,37 @@ img {
     bottom: 24px;
     right: 24px;
     z-index: 999;
-    background: #25D366;
-    width: 60px;
-    height: 60px;
+    background: var(--whatsapp);
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
-    transition: var(--transition);
-    animation: float 3s ease-in-out infinite;
+    box-shadow: 0 6px 24px rgba(37, 211, 102, 0.35), 0 2px 8px rgba(57, 37, 27, 0.12);
+    transition: transform var(--pf-dur) var(--pf-ease), box-shadow var(--pf-dur) var(--pf-ease);
+    animation: float 3.5s ease-in-out infinite;
+    border: 2px solid var(--pf-white);
 }
 
 .whatsapp-floating-btn:hover {
     transform: scale(1.1);
-    box-shadow: 0 8px 35px rgba(37, 211, 102, 0.5);
+    box-shadow: 0 10px 36px rgba(37, 211, 102, 0.5), 0 4px 12px rgba(57, 37, 27, 0.15);
 }
 
 .whatsapp-floating-btn svg {
-    width: 32px;
-    height: 32px;
-    fill: white;
+    width: 30px;
+    height: 30px;
+    fill: var(--pf-white);
 }
 
 @media (max-width: 768px) {
     .whatsapp-floating-btn {
         width: 50px;
         height: 50px;
-        bottom: 16px;
+        bottom: 80px; /* lift above the mobile bottom-nav */
         right: 16px;
+        border-width: 2px;
     }
     .whatsapp-floating-btn svg {
         width: 26px;
@@ -166,16 +305,134 @@ img {
    ============================================ */
 .notification-toast {
     position: fixed;
-    bottom: 90px;
+    bottom: 100px;
     right: 24px;
-    padding: 14px 24px;
-    background: #22c55e;
-    color: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    padding: 14px 22px;
+    background: var(--pf-chocolate);
+    color: var(--pf-cream);
+    border-radius: var(--pf-radius);
+    box-shadow: var(--pf-shadow-lg);
     z-index: 9999;
     font-weight: 500;
-    animation: slideIn 0.4s ease;
-    max-width: 340px;
     font-size: 14px;
+    font-family: var(--pf-font-body);
+    animation: slideIn 0.4s var(--pf-ease);
+    max-width: 340px;
+    border-left: 3px solid var(--pf-gold);
+    letter-spacing: 0.2px;
+    line-height: 1.5;
+}
+
+.notification-toast.success {
+    background: var(--pf-chocolate);
+    border-left-color: var(--whatsapp);
+}
+
+.notification-toast.error {
+    background: var(--pf-chocolate);
+    border-left-color: #dc2626;
+}
+
+.notification-toast.warning {
+    background: var(--pf-chocolate);
+    border-left-color: var(--pf-gold);
+}
+
+@media (max-width: 768px) {
+    .notification-toast {
+        bottom: 140px; /* lift above mobile bottom-nav */
+        right: 16px;
+        left: 16px;
+        max-width: none;
+        padding: 12px 18px;
+        font-size: 13px;
+    }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.pf-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.pf-text-gold {
+    color: var(--pf-gold-deep);
+}
+
+.pf-text-cream {
+    color: var(--pf-cream);
+}
+
+.pf-text-muted {
+    color: var(--pf-text-muted);
+}
+
+.pf-bg-cream {
+    background: var(--pf-cream);
+}
+
+.pf-bg-chocolate {
+    background: var(--pf-chocolate);
+}
+
+.pf-hidden {
+    display: none !important;
+}
+
+.pf-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .whatsapp-floating-btn,
+    .animate-on-scroll {
+        animation: none !important;
+    }
+
+    .animate-on-scroll {
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}
+
+/* ============================================
+   RESPONSIVE HELPERS
+   ============================================ */
+@media (max-width: 768px) {
+    body {
+        font-size: 15px;
+    }
+
+    h1 { font-size: clamp(32px, 8vw, 48px); }
+    h2 { font-size: clamp(26px, 6vw, 38px); }
+    h3 { font-size: clamp(20px, 4vw, 28px); }
+}
+
+@media (max-width: 400px) {
+    body {
+        font-size: 14px;
+    }
 }

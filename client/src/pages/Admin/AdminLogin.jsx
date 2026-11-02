@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/api';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -23,7 +24,7 @@ const AdminLogin = () => {
       const token = localStorage.getItem('adminToken');
       if (!token) return;
       try {
-        const res = await fetch('/api/admin/verify', {
+        const res = await apiFetch('/api/admin/verify', {
           headers: { Authorization: 'Bearer ' + token },
         });
         const data = await res.json();
@@ -56,7 +57,7 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await apiFetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password: password.trim() }),

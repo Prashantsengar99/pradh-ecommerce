@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/api';
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -53,7 +54,7 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const res = await fetch('/api/auth/orders', {
+      const res = await apiFetch('/api/auth/orders', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -70,7 +71,7 @@ const Dashboard = () => {
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
-        const res = await fetch('/api/auth/profile', { headers });
+        const res = await apiFetch('/api/auth/profile', { headers });
         const data = await res.json();
         if (data.success && data.user) {
           setUser(data.user);
@@ -79,13 +80,13 @@ const Dashboard = () => {
       } catch (err) { console.warn('Profile fetch failed:', err); }
 
       try {
-        const res = await fetch('/api/auth/orders', { headers });
+        const res = await apiFetch('/api/auth/orders', { headers });
         const data = await res.json();
         if (data.success) setOrders(data.orders || []);
       } catch (err) { console.warn('Orders fetch failed:', err); }
 
       try {
-        const res = await fetch('/api/auth/notifications', { headers });
+        const res = await apiFetch('/api/auth/notifications', { headers });
         const data = await res.json();
         if (data.success) {
           const readIds = JSON.parse(localStorage.getItem('readNotifs') || '[]');
@@ -126,7 +127,7 @@ const Dashboard = () => {
     }
     const fetchTracking = async () => {
       try {
-        const res = await fetch(`/api/order/track/${trackingOrder.id}`);
+        const res = await apiFetch(`/api/order/track/${trackingOrder.id}`);
         const data = await res.json();
         if (data.success) setTrackingData(data);
       } catch (err) { console.warn('Tracking fetch failed:', err); }
@@ -144,7 +145,7 @@ const Dashboard = () => {
     setCancelLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/orders/${cancelOrder.id}/cancel`, {
+      const res = await apiFetch(`/api/orders/${cancelOrder.id}/cancel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,7 +179,7 @@ const Dashboard = () => {
     setReturnLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/orders/${returnOrder.id}/return`, {
+      const res = await apiFetch(`/api/orders/${returnOrder.id}/return`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

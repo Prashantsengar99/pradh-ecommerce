@@ -5,6 +5,7 @@ import { Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import toast from 'react-hot-toast';
+import { apiFetch } from '../services/api';
 import '../styles/home.css';
 
 const FALLBACK_PRODUCTS = [
@@ -56,19 +57,22 @@ const Home = () => {
   const [typewriterText, setTypewriterText] = useState('');
   const [openFaq, setOpenFaq] = useState(null);
   const [email, setEmail] = useState('');
+  const [parallax, setParallax] = useState({ x: 0, y: 0 });
   const heroRef = useRef(null);
+  const productStageRef = useRef(null);
 
   const TEXTS = ['Pure Desi Fuel', 'No Preservatives', '100% Natural Energy', 'Traditional Nutrition'];
 
-  // Load featured products
+  // Load featured products — uses PUBLIC /api/products endpoint (admin route is now protected)
   useEffect(() => {
     const loadFeaturedProducts = async () => {
       try {
-        const res = await fetch('/api/admin/products');
+        const res = await apiFetch('/api/products');
         const data = await res.json();
 
         if (data.success && data.products?.length > 0) {
-          const active = data.products.filter((p) => p.status === 'active' || p.stock > 0);
+          // Server already filters to status:'active' on /api/products, but double-check stock
+          const active = data.products.filter((p) => p.status === 'active' && (p.stock ?? 0) > 0);
           const featured = active.slice(0, 8);
 
           if (featured.length > 0) {
@@ -152,9 +156,33 @@ const Home = () => {
     return () => observer.disconnect();
   }, [products]);
 
-  // Add to cart
+  // Mouse-follow parallax on hero product (desktop only, respects reduced motion)
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isDesktop = window.matchMedia('(min-width: 1025px)').matches;
+    if (prefersReduced || !isDesktop || !productStageRef.current) return;
+
+    const handleMove = (e) => {
+      const rect = heroRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) / rect.width;
+      const dy = (e.clientY - cy) / rect.height;
+      setParallax({ x: Math.max(-1, Math.min(1, dx)), y: Math.max(-1, Math.min(1, dy)) });
+    };
+    window.addEventListener('mousemove', handleMove);
+    return () => window.removeEventListener('mousemove', handleMove);
+  }, []);
+
+  // Add to cart — wrapped in try/catch for malformed localStorage
   const handleAddToCart = (product) => {
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    let cart = [];
+    try {
+      cart = JSON.parse(localStorage.getItem('cart')) || [];
+    } catch {
+      cart = [];
+    }
     const existing = cart.find((item) => item.id === product.id);
     if (existing) {
       existing.quantity += 1;
@@ -185,118 +213,165 @@ const Home = () => {
   };
 
   return (
-    <main>
+    <main className="pf-home">
       {/* ANNOUNCEMENT BAR */}
-      <div className="announcement-bar">
-        🎉 Use code <span className="coupon-highlight">PRADH20</span> for 20% OFF on your first order! 🔥 Limited time only!
+      <div className="pf-announcement">
+        <span className="pf-announcement-text">
+          Use code <span className="pf-coupon">PRADH20</span> for 20% OFF on your first order — Limited time only
+        </span>
       </div>
 
       {/* HERO */}
-      <section className="hero-premium" ref={heroRef}>
-        <div className="hero-bg-animation">
-          <div className="circle"></div>
-          <div className="circle"></div>
+      <section className="pf-hero" ref={heroRef}>
+        <div className="pf-hero-bg" aria-hidden="true">
+          <div className="pf-hero-grain" />
+          <div className="pf-hero-orb pf-hero-orb--gold" />
+          <div className="pf-hero-orb pf-hero-orb--brown" />
+          <svg className="pf-hero-arch" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <circle cx="300" cy="300" r="260" fill="none" stroke="rgba(196,154,69,0.18)" strokeWidth="1.2" />
+            <circle cx="300" cy="300" r="220" fill="none" stroke="rgba(196,154,69,0.12)" strokeWidth="1" strokeDasharray="2 8" />
+          </svg>
         </div>
-        <div className="glow-orb orb-1"></div>
-        <div className="glow-orb orb-2"></div>
 
-        <div className="particle" style={{ left: '10%', top: '20%', animationDuration: '12s' }}></div>
-        <div className="particle" style={{ left: '85%', top: '15%', animationDuration: '15s', animationDelay: '2s' }}></div>
-        <div className="particle" style={{ left: '20%', top: '70%', animationDuration: '18s', animationDelay: '4s' }}></div>
-        <div className="particle" style={{ left: '75%', top: '65%', animationDuration: '14s', animationDelay: '1s' }}></div>
-        <div className="particle" style={{ left: '50%', top: '10%', animationDuration: '20s', animationDelay: '3s' }}></div>
+        <div className="pf-hero-inner">
+          {/* LEFT — Editorial copy */}
+          <div className="pf-hero-copy">
+            <div className="pf-hero-eyebrow animate-on-scroll">
+              <span className="pf-eyebrow-dot" />
+              100% Pure Desi Fuel
+            </div>
 
-        <div className="hero-content-new">
-          <div className="hero-badge">
-            <i className="fas fa-fire"></i> 100% Pure Desi Fuel
+            <h1 className="pf-hero-title animate-on-scroll">
+              <span className="pf-hero-title-line">Fuel Your</span>
+              <span className="pf-hero-title-accent">Desi Strength</span>
+            </h1>
+
+            <p className="pf-hero-tagline animate-on-scroll">
+              Just <span className="pf-typewriter">{typewriterText}<span className="pf-caret" /></span>
+            </p>
+
+            <p className="pf-hero-desc animate-on-scroll">
+              Experience the power of traditional Indian nutrition with PRADH Desi Fuel.
+              Crafted from premium roasted grains, nuts, and Ayurvedic herbs for unstoppable energy.
+            </p>
+
+            <div className="pf-hero-cta animate-on-scroll">
+              <Link to="/products" className="pf-btn pf-btn--primary">
+                <span>Shop Now</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+              <Link to="/about" className="pf-btn pf-btn--ghost">
+                Our Story
+              </Link>
+            </div>
+
+            <div className="pf-hero-stats animate-on-scroll">
+              <div className="pf-stat">
+                <span className="pf-stat-num">{productCount}</span>
+                <span className="pf-stat-label">Premium Blends</span>
+              </div>
+              <span className="pf-stat-divider" />
+              <div className="pf-stat">
+                <span className="pf-stat-num">100%</span>
+                <span className="pf-stat-label">Natural Ingredients</span>
+              </div>
+              <span className="pf-stat-divider" />
+              <div className="pf-stat">
+                <span className="pf-stat-num">{customerCount}</span>
+                <span className="pf-stat-label">Happy Customers</span>
+              </div>
+            </div>
           </div>
 
-          <h1 className="hero-title">
-            <span className="highlight-text">Fuel Your</span>
-            <span className="highlight">Desi Strength</span>
-          </h1>
+          {/* RIGHT — Product showcase */}
+          <div className="pf-hero-stage animate-on-scroll" ref={productStageRef}>
+            <div
+              className="pf-product-float"
+              style={{
+                transform: `translate3d(${parallax.x * 18}px, ${parallax.y * 18}px, 0)`,
+              }}
+            >
+              <div className="pf-product-glow" aria-hidden="true" />
+              <div className="pf-product-shadow" aria-hidden="true" />
+              <img
+                src="/product1.jpeg"
+                alt="PRADH Desi Fuel premium nutrition pouch"
+                className="pf-product-img"
+                loading="eager"
+                onError={(e) => { e.target.src = '/product2.jpeg'; }}
+              />
 
-          <p className="hero-subtitle">
-            Just <span className="typewriter-text">{typewriterText}</span>
-          </p>
-
-          <p className="hero-description">
-            Experience the power of traditional Indian nutrition with PRADH Desi Fuel.
-            Crafted from premium roasted grains, nuts, and Ayurvedic herbs for unstoppable energy.
-          </p>
-
-          <div className="hero-buttons-new">
-            <Link to="/products" className="btn-hero-primary">
-              <i className="fas fa-shopping-bag"></i> Shop Now
-              <i className="fas fa-arrow-right"></i>
-            </Link>
-            <Link to="/about" className="btn-hero-secondary">
-              <i className="fas fa-play-circle"></i> Our Story
-              <i className="fas fa-arrow-right"></i>
-            </Link>
-          </div>
-
-          <div className="hero-stats">
-            <div className="stat-item">
-              <span className="stat-number">{productCount}</span>
-              <span className="stat-label">Premium Blends</span>
+              {/* Decorative ingredient accents */}
+              <span className="pf-ingredient-accent pf-ingredient-accent--1" aria-hidden="true">🌾</span>
+              <span className="pf-ingredient-accent pf-ingredient-accent--2" aria-hidden="true">🥜</span>
+              <span className="pf-ingredient-accent pf-ingredient-accent--3" aria-hidden="true">🌿</span>
+              <span className="pf-ingredient-accent pf-ingredient-accent--4" aria-hidden="true">🍫</span>
             </div>
-            <div className="stat-item">
-              <span className="stat-number">100%</span>
-              <span className="stat-label">Natural Ingredients</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">{customerCount}</span>
-              <span className="stat-label">Happy Customers</span>
+
+            <div className="pf-hero-badge-float" aria-hidden="true">
+              <span className="pf-hero-badge-icon">★</span>
+              <div>
+                <span className="pf-hero-badge-num">4.8</span>
+                <span className="pf-hero-badge-label">Rated by 1500+</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* TRUST STRIP */}
-      <div className="trust-strip">
-        <div className="trust-strip-inner">
+      <div className="pf-trust">
+        <div className="pf-trust-track">
           {[...Array(2)].map((_, i) => (
-            <div key={i} style={{ display: 'flex', gap: '60px' }}>
-              <span className="trust-item-strip"><i className="fas fa-truck"></i> Free Shipping Above ₹499</span>
-              <span className="trust-item-strip"><i className="fas fa-shield-alt"></i> 100% Secure Payments</span>
-              <span className="trust-item-strip"><i className="fas fa-leaf"></i> 100% Natural Ingredients</span>
-              <span className="trust-item-strip"><i className="fas fa-undo"></i> Easy Returns</span>
-              <span className="trust-item-strip"><i className="fas fa-headset"></i> 24/7 Support</span>
-              <span className="trust-item-strip"><i className="fas fa-star"></i> Trusted by 1500+ Indians</span>
+            <div className="pf-trust-group" key={i}>
+              <span className="pf-trust-item"><span className="pf-trust-ico">🚚</span> Free Shipping Above ₹499</span>
+              <span className="pf-trust-item"><span className="pf-trust-ico">🛡️</span> 100% Secure Payments</span>
+              <span className="pf-trust-item"><span className="pf-trust-ico">🌿</span> 100% Natural Ingredients</span>
+              <span className="pf-trust-item"><span className="pf-trust-ico">↩️</span> Easy Returns</span>
+              <span className="pf-trust-item"><span className="pf-trust-ico">🎧</span> 24/7 Support</span>
+              <span className="pf-trust-item"><span className="pf-trust-ico">★</span> Trusted by 1500+ Indians</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* USP SECTION */}
-      <section className="usp-section">
-        <h2 className="section-title animate-on-scroll">
-          Why <span className="highlight">PRADH Desi Fuel</span>?
-        </h2>
-        <p className="section-subtitle animate-on-scroll">
-          The difference you can taste and feel
-        </p>
+      <section className="pf-section pf-usp">
+        <div className="pf-section-head">
+          <span className="pf-kicker animate-on-scroll">Why PRADH</span>
+          <h2 className="pf-section-title animate-on-scroll">
+            The Difference You Can <span className="pf-accent">Taste &amp; Feel</span>
+          </h2>
+          <p className="pf-section-sub animate-on-scroll">
+            Every pouch is handcrafted with traditional sand-roasting techniques and honest ingredients.
+          </p>
+        </div>
 
-        <div className="usp-grid">
+        <div className="pf-usp-grid">
           {USPS.map((usp, i) => (
-            <div className="usp-card animate-on-scroll" key={i}>
-              <div className="usp-icon">{usp.icon}</div>
-              <h3>{usp.title}</h3>
-              <p>{usp.desc}</p>
-            </div>
+            <article className="pf-usp-card animate-on-scroll" key={i}>
+              <div className="pf-usp-ico">{usp.icon}</div>
+              <h3 className="pf-usp-title">{usp.title}</h3>
+              <p className="pf-usp-desc">{usp.desc}</p>
+              <span className="pf-usp-index">0{i + 1}</span>
+            </article>
           ))}
         </div>
       </section>
 
       {/* FEATURED PRODUCTS */}
-      <section className="section">
-        <h2 className="section-title animate-on-scroll">
-          Featured <span className="highlight">Health Mixes</span>
-        </h2>
-        <p className="section-subtitle animate-on-scroll">
-          Discover our most loved traditional nutrition blends
-        </p>
+      <section className="pf-section pf-products">
+        <div className="pf-section-head">
+          <span className="pf-kicker animate-on-scroll">Bestsellers</span>
+          <h2 className="pf-section-title animate-on-scroll">
+            Featured <span className="pf-accent">Health Mixes</span>
+          </h2>
+          <p className="pf-section-sub animate-on-scroll">
+            Discover our most loved traditional nutrition blends.
+          </p>
+        </div>
 
         <div className="animate-on-scroll">
           <Swiper
@@ -310,38 +385,44 @@ const Home = () => {
               640: { slidesPerView: 2, spaceBetween: 20 },
               1024: { slidesPerView: 3, spaceBetween: 28 },
             }}
-            className="mySwiper"
+            className="pf-swiper"
           >
             {products.map((product) => (
               <SwiperSlide key={product.id}>
-                <div className="product-card">
-                  <Link to={`/product/${product.id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
-                    <div className="product-img-container">
+                <article className="pf-product-card">
+                  <Link to={`/product/${product.id}`} className="pf-product-link">
+                    <div className="pf-product-media">
                       <img
                         src={product.image || '/product1.jpeg'}
                         alt={product.name}
                         loading="lazy"
                         onError={(e) => (e.target.src = '/product1.jpeg')}
                       />
+                      {product.badge && (
+                        <span className={`pf-product-badge pf-product-badge--${product.badge}`}>
+                          {product.badge === 'hot' ? 'Bestseller' : 'New'}
+                        </span>
+                      )}
                     </div>
-                    <div className="product-info">
-                      <h3 className="product-title">{product.name}</h3>
-                      <p className="product-category">{product.category || 'Premium Blend'}</p>
-                      <div className="product-meta">
-                        <span className="product-price">₹{parseFloat(product.price).toFixed(0)}</span>
+                    <div className="pf-product-body">
+                      <span className="pf-product-cat">{product.category || 'Premium Blend'}</span>
+                      <h3 className="pf-product-name">{product.name}</h3>
+                      <div className="pf-product-foot">
+                        <span className="pf-product-price">₹{parseFloat(product.price).toFixed(0)}</span>
                         <button
-                          className="btn-primary"
+                          className="pf-btn pf-btn--mini"
                           onClick={(e) => {
                             e.preventDefault();
                             handleAddToCart(product);
                           }}
+                          aria-label={`Add ${product.name} to cart`}
                         >
                           Add to Cart
                         </button>
                       </div>
                     </div>
                   </Link>
-                </div>
+                </article>
               </SwiperSlide>
             ))}
           </Swiper>
@@ -349,103 +430,156 @@ const Home = () => {
       </section>
 
       {/* INGREDIENTS */}
-      <section className="section">
-        <h2 className="section-title animate-on-scroll">
-          🌱 What Goes Inside <span className="highlight">PRADH Desi Fuel</span>?
-        </h2>
-        <p className="section-subtitle animate-on-scroll">
-          100% Honest Disclosure. Pure Traditional Nutrition Blend.
-        </p>
+      <section className="pf-section pf-ingredients">
+        <div className="pf-section-head">
+          <span className="pf-kicker animate-on-scroll">Honest Disclosure</span>
+          <h2 className="pf-section-title animate-on-scroll">
+            What Goes Inside <span className="pf-accent">PRADH Desi Fuel</span>?
+          </h2>
+          <p className="pf-section-sub animate-on-scroll">
+            100% Honest Disclosure. Pure Traditional Nutrition Blend.
+          </p>
+        </div>
 
-        <div className="ingredients-grid animate-on-scroll">
+        <div className="pf-ingredients-grid animate-on-scroll">
           {INGREDIENTS.map((item, i) => (
-            <div className="ingredient-card" key={i}>
-              <div className="icon">{item.icon}</div>
-              <h3>{item.title}</h3>
-              <p>{item.desc}</p>
-            </div>
+            <article className="pf-ingredient-card" key={i}>
+              <div className="pf-ingredient-ico">{item.icon}</div>
+              <h3 className="pf-ingredient-title">{item.title}</h3>
+              <p className="pf-ingredient-desc">{item.desc}</p>
+            </article>
           ))}
         </div>
 
-        <div className="ingredient-tags animate-on-scroll">
-          <span>🌿 Contains Sendha Namak &amp; Herbs</span>
-          <span>🚫 Zero Preservatives / Pure Veg</span>
+        <div className="pf-ingredient-tags animate-on-scroll">
+          <span className="pf-tag pf-tag--green">🌿 Contains Sendha Namak &amp; Herbs</span>
+          <span className="pf-tag pf-tag--green">🚫 Zero Preservatives / Pure Veg</span>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: '40px' }} className="animate-on-scroll">
-          <a href="/Ingredients.jpeg" download="Ingredients.jpeg" className="download-btn">
-            <i className="fas fa-download"></i> Download Original Packet Label
+        <div className="pf-ingredient-download animate-on-scroll">
+          <a href="/Ingredients.jpeg" download="Ingredients.jpeg" className="pf-btn pf-btn--outline">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Download Original Packet Label
           </a>
-          <p style={{ color: '#64748b', fontSize: '13px', marginTop: '12px' }}>
-            Click to download the official back-panel packaging image.
-          </p>
+          <p className="pf-download-note">Click to download the official back-panel packaging image.</p>
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="how-it-works">
-        <h2 className="section-title animate-on-scroll">
-          How It <span className="highlight">Works</span>
-        </h2>
-        <p className="section-subtitle animate-on-scroll">
-          Three simple steps to fuel your body
-        </p>
+      <section className="pf-section pf-steps">
+        <div className="pf-section-head">
+          <span className="pf-kicker animate-on-scroll">Simple Ritual</span>
+          <h2 className="pf-section-title animate-on-scroll">
+            How It <span className="pf-accent">Works</span>
+          </h2>
+          <p className="pf-section-sub animate-on-scroll">
+            Three simple steps to fuel your body.
+          </p>
+        </div>
 
-        <div className="steps-grid">
+        <div className="pf-steps-grid">
           {STEPS.map((step, i) => (
-            <div className="step-card animate-on-scroll" key={i}>
-              <div className="step-number">{i + 1}</div>
-              <div style={{ fontSize: '64px', marginBottom: '20px' }}>{step.icon}</div>
-              <h3>{step.title}</h3>
-              <p>{step.desc}</p>
-            </div>
+            <article className="pf-step-card animate-on-scroll" key={i}>
+              <div className="pf-step-top">
+                <span className="pf-step-num">{String(i + 1).padStart(2, '0')}</span>
+                <span className="pf-step-ico">{step.icon}</span>
+              </div>
+              <h3 className="pf-step-title">{step.title}</h3>
+              <p className="pf-step-desc">{step.desc}</p>
+              {i < STEPS.length - 1 && <span className="pf-step-connector" aria-hidden="true" />}
+            </article>
           ))}
         </div>
       </section>
 
       {/* TESTIMONIALS */}
-      <section className="section">
-        <h2 className="section-title animate-on-scroll">
-          What Our <span className="highlight">Community Says</span>
-        </h2>
-        <p className="section-subtitle animate-on-scroll">
-          Real stories from real customers
-        </p>
+      <section className="pf-section pf-reviews">
+        <div className="pf-section-head">
+          <span className="pf-kicker animate-on-scroll">Real Stories</span>
+          <h2 className="pf-section-title animate-on-scroll">
+            What Our <span className="pf-accent">Community Says</span>
+          </h2>
+          <p className="pf-section-sub animate-on-scroll">
+            Real stories from real customers.
+          </p>
+        </div>
 
-        <div className="reviews-grid animate-on-scroll">
+        <div className="pf-reviews-grid animate-on-scroll">
           {TESTIMONIALS.map((t, i) => (
-            <div className="review-card" key={i}>
-              <p>"{t.text}"</p>
-              <div className="author">— {t.author}</div>
-              <div className="review-stars">{'★'.repeat(t.rating)}</div>
-            </div>
+            <article className="pf-review-card" key={i}>
+              <div className="pf-review-stars" aria-label={`Rated ${t.rating} out of 5`}>
+                {Array.from({ length: t.rating }).map((_, s) => (
+                  <span key={s}>★</span>
+                ))}
+              </div>
+              <p className="pf-review-text">“{t.text}”</p>
+              <div className="pf-review-author">
+                <span className="pf-review-avatar" aria-hidden="true">{t.author.charAt(0)}</span>
+                <span className="pf-review-name">{t.author}</span>
+              </div>
+            </article>
           ))}
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="faq-section">
-        <h2 className="section-title animate-on-scroll">
-          Frequently <span className="highlight">Asked Questions</span>
-        </h2>
-        <p className="section-subtitle animate-on-scroll">
-          Got questions? We've got answers
-        </p>
+      {/* CTA BANNER */}
+      <section className="pf-section pf-cta-section">
+        <div className="pf-cta-banner animate-on-scroll">
+          <div className="pf-cta-inner">
+            <span className="pf-kicker pf-kicker--light">First Order Offer</span>
+            <h2 className="pf-cta-title">
+              Ready to <span className="pf-cta-accent">Fuel Your Desi Strength</span>?
+            </h2>
+            <p className="pf-cta-desc">
+              Use this coupon code and get flat 20% off on your first order.
+            </p>
+            <div className="pf-cta-coupon" aria-label="Coupon code PRADH20">
+              <span className="pf-cta-coupon-label">CODE</span>
+              <span className="pf-cta-coupon-value">PRADH20</span>
+            </div>
+            <Link to="/products" className="pf-btn pf-btn--gold">
+              <span>Shop Now</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </section>
 
-        <div className="animate-on-scroll">
+      {/* FAQ */}
+      <section className="pf-section pf-faq">
+        <div className="pf-section-head">
+          <span className="pf-kicker animate-on-scroll">Help Center</span>
+          <h2 className="pf-section-title animate-on-scroll">
+            Frequently <span className="pf-accent">Asked Questions</span>
+          </h2>
+          <p className="pf-section-sub animate-on-scroll">
+            Got questions? We've got answers.
+          </p>
+        </div>
+
+        <div className="pf-faq-list animate-on-scroll">
           {FAQS.map((faq, i) => (
             <div
               key={i}
-              className={`faq-item ${openFaq === i ? 'open' : ''}`}
+              className={`pf-faq-item ${openFaq === i ? 'open' : ''}`}
             >
               <button
-                className="faq-question"
+                className="pf-faq-question"
                 onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                aria-expanded={openFaq === i}
               >
                 <span>{faq.q}</span>
-                <span className="faq-icon">+</span>
+                <span className="pf-faq-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </span>
               </button>
-              <div className="faq-answer">
+              <div className="pf-faq-answer">
                 <p>{faq.a}</p>
               </div>
             </div>
@@ -454,37 +588,30 @@ const Home = () => {
       </section>
 
       {/* NEWSLETTER */}
-      <section className="newsletter-section">
-        <h2>
-          Join the <span>PRADH Family</span>
-        </h2>
-        <p>Get exclusive offers, health tips & product updates straight to your inbox</p>
-        <form className="newsletter-form" onSubmit={handleNewsletterSubmit}>
-          <input
-            type="email"
-            placeholder="your@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <button type="submit">Subscribe 🎉</button>
-        </form>
-      </section>
-
-      {/* CTA BANNER */}
-      <div className="cta-banner animate-on-scroll">
-        <h2>
-          Ready to <span className="highlight">Fuel Your Desi Strength</span>?
-        </h2>
-        <p>Use this coupon code and get flat 20% off on your first order</p>
-        <div className="cta-coupon">PRADH20</div>
-        <div>
-          <Link to="/products" className="btn-hero-primary">
-            <i className="fas fa-shopping-bag"></i> Shop Now
-            <i className="fas fa-arrow-right"></i>
-          </Link>
+      <section className="pf-newsletter">
+        <div className="pf-newsletter-inner animate-on-scroll">
+          <span className="pf-kicker">Stay Connected</span>
+          <h2 className="pf-newsletter-title">
+            Join the <span className="pf-accent">PRADH Family</span>
+          </h2>
+          <p className="pf-newsletter-desc">
+            Get exclusive offers, health tips &amp; product updates straight to your inbox.
+          </p>
+          <form className="pf-newsletter-form" onSubmit={handleNewsletterSubmit}>
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              aria-label="Email address"
+            />
+            <button type="submit" className="pf-btn pf-btn--primary">
+              Subscribe
+            </button>
+          </form>
         </div>
-      </div>
+      </section>
     </main>
   );
 };

@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/api';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -23,7 +24,7 @@ const Cart = () => {
   // Load delivery settings
   const loadDeliverySettings = async () => {
     try {
-      const res = await fetch('/api/delivery-charge');
+      const res = await apiFetch('/api/delivery-charge');
       const data = await res.json();
       if (data.success) {
         setDeliverySettings({
@@ -46,7 +47,7 @@ const Cart = () => {
     if (productIds.length === 0) return;
 
     try {
-      const res = await fetch('/api/purchase-limits/bulk', {
+      const res = await apiFetch('/api/purchase-limits/bulk', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

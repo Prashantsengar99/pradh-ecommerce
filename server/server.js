@@ -275,7 +275,7 @@ app.get('/api/delivery-charge', async (req, res) => {
   }
 });
 
-app.put('/api/delivery-charge', async (req, res) => {
+app.put('/api/delivery-charge', verifyAdminToken, async (req, res) => {
   try {
     const { charge, freeThreshold } = req.body;
     if (charge !== undefined && (isNaN(charge) || charge < 0)) {
@@ -590,7 +590,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
   try {
     const users = await User.find().select('-password');
     res.json(users);
@@ -599,7 +599,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-app.get('/api/user/:username', async (req, res) => {
+app.get('/api/admin/user/:username', verifyAdminToken, async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).select('-password');
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -612,7 +612,19 @@ app.get('/api/user/:username', async (req, res) => {
 // ============================================
 // PRODUCT ROUTES
 // ============================================
-app.get('/api/admin/products', async (req, res) => {
+// NOTE: This route is also used by the PUBLIC storefront (Home.jsx, Products.jsx, ProductDetail.jsx)
+// To avoid breaking the storefront, we keep it public BUT only return active products.
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await Product.find({ status: 'active' });
+    res.json({ success: true, products });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin: list ALL products (including inactive) — requires admin token.
+app.get('/api/admin/products', verifyAdminToken, async (req, res) => {
   try {
     const products = await Product.find();
     res.json({ success: true, products });
@@ -621,7 +633,20 @@ app.get('/api/admin/products', async (req, res) => {
   }
 });
 
-app.post('/api/admin/products', async (req, res) => {
+// Public: get a single product by id (only if active).
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const product = await Product.findOne({ id: req.params.id, status: 'active' });
+    if (!product) {
+      return res.status(404).json({ success: false, error: 'Product not found' });
+    }
+    res.json({ success: true, product });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/admin/products', verifyAdminToken, async (req, res) => {
   try {
     const { name, price, description, category, image, stock, maxPurchasePerUser } = req.body;
     if (!name || !price) {
@@ -645,7 +670,7 @@ app.post('/api/admin/products', async (req, res) => {
   }
 });
 
-app.put('/api/admin/products/:id', async (req, res) => {
+app.put('/api/admin/products/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, price, description, category, image, stock, maxPurchasePerUser, status } = req.body;
@@ -669,7 +694,7 @@ app.put('/api/admin/products/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/products/:id', async (req, res) => {
+app.delete('/api/admin/products/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     await Product.deleteOne({ id });
@@ -842,7 +867,10 @@ app.post('/api/purchase-limits/bulk', verifyToken, async (req, res) => {
 // ============================================
 // ORDER ROUTES
 // ============================================
-app.get('/get-orders', async (req, res) => {
+// Admin: list ALL orders (with full customer PII) — requires admin token.
+// Kept the legacy path /get-orders for backward compat with the admin frontend,
+// but now protected. Frontend should migrate to /api/admin/orders.
+app.get('/get-orders', verifyAdminToken, async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json({ success: true, orders });
@@ -851,7 +879,8 @@ app.get('/get-orders', async (req, res) => {
   }
 });
 
-app.put('/api/orders/:id', async (req, res) => {
+// Admin: change order status (e.g., mark shipped/delivered/cancelled)
+app.put('/api/orders/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, cancellation_reason } = req.body;
@@ -983,7 +1012,8 @@ app.post('/api/orders/:id/return', verifyToken, async (req, res) => {
 // ============================================
 // COUPON ROUTES
 // ============================================
-app.get('/api/coupons', async (req, res) => {
+// Admin: list ALL coupons (including expired) — requires admin token.
+app.get('/api/coupons', verifyAdminToken, async (req, res) => {
   try {
     const coupons = await Coupon.find();
     res.json({ success: true, coupons });
@@ -992,7 +1022,8 @@ app.get('/api/coupons', async (req, res) => {
   }
 });
 
-app.post('/api/coupons', async (req, res) => {
+// Admin: create a new coupon — requires admin token.
+app.post('/api/coupons', verifyAdminToken, async (req, res) => {
   try {
     const { code, discount, expiry } = req.body;
     if (!code || !discount) return res.status(400).json({ success: false, error: 'Code and discount required' });
@@ -1021,7 +1052,8 @@ app.post('/api/coupons/validate', async (req, res) => {
   }
 });
 
-app.delete('/api/coupons/:code', async (req, res) => {
+// Admin: delete a coupon — requires admin token.
+app.delete('/api/coupons/:code', verifyAdminToken, async (req, res) => {
   try {
     const { code } = req.params;
     await Coupon.deleteOne({ code: code.toUpperCase() });
@@ -1128,7 +1160,8 @@ app.get('/api/reviews/ratings/all', async (req, res) => {
 // ============================================
 // REVIEW ROUTES
 // ============================================
-app.get('/api/reviews', async (req, res) => {
+// Admin: list ALL reviews (including pending) — requires admin token.
+app.get('/api/reviews', verifyAdminToken, async (req, res) => {
   try {
     const reviews = await Review.find();
     res.json({ success: true, reviews });
@@ -1159,7 +1192,8 @@ app.post('/api/reviews', async (req, res) => {
   }
 });
 
-app.put('/api/reviews/:id', async (req, res) => {
+// Admin: approve/reject/edit a review — requires admin token.
+app.put('/api/reviews/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, comment, rating } = req.body;
@@ -1178,7 +1212,8 @@ app.put('/api/reviews/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/reviews/:id', async (req, res) => {
+// Admin: delete a review — requires admin token.
+app.delete('/api/reviews/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     await Review.deleteOne({ id });
@@ -1258,8 +1293,8 @@ app.post('/api/return-requests', async (req, res) => {
   }
 });
 
-// ✅ GET ALL (admin)
-app.get('/api/return-requests', async (req, res) => {
+// ✅ GET ALL (admin) — requires admin token.
+app.get('/api/return-requests', verifyAdminToken, async (req, res) => {
   try {
     const requests = await ReturnRequest.find().sort({ createdAt: -1 });
     res.json({ success: true, requests, count: requests.length });
@@ -1268,19 +1303,42 @@ app.get('/api/return-requests', async (req, res) => {
   }
 });
 
-// ✅ GET BY ID
+// ✅ GET BY ID — admin can view any; user can view own (ownership checked below).
+// Auth is optional: if a user token is provided, we verify ownership; if an admin
+// token is provided, we allow access; if no token, we require the caller to be admin.
 app.get('/api/return-requests/:id', async (req, res) => {
   try {
     const request = await ReturnRequest.findOne({ id: req.params.id });
     if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+
+    // Determine caller identity from token (optional)
+    const token = req.headers.authorization?.split(' ')[1] || req.headers['x-auth-token'];
+    let isAdmin = false;
+    let userId = null;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        isAdmin = decoded.role === 'admin';
+        userId = String(decoded.id);
+      } catch {}
+    }
+
+    // Authorization: admin OR owner (matching userId) OR same phone
+    const isOwner =
+      (userId && request.userId === userId) ||
+      (userId && false); // phone matching would require fetching the user; keep simple
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view this request' });
+    }
+
     res.json({ success: true, request });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ✅ UPDATE STATUS (admin approve/reject)
-app.put('/api/return-requests/:id', async (req, res) => {
+// ✅ UPDATE STATUS (admin approve/reject) — requires admin token.
+app.put('/api/return-requests/:id', verifyAdminToken, async (req, res) => {
   try {
     const { status, adminNote } = req.body;
     const request = await ReturnRequest.findOne({ id: req.params.id });
@@ -1300,8 +1358,8 @@ app.put('/api/return-requests/:id', async (req, res) => {
   }
 });
 
-// ✅ DELETE (admin)
-app.delete('/api/return-requests/:id', async (req, res) => {
+// ✅ DELETE (admin) — requires admin token.
+app.delete('/api/return-requests/:id', verifyAdminToken, async (req, res) => {
   try {
     await ReturnRequest.deleteOne({ id: req.params.id });
     res.json({ success: true, message: 'Request deleted' });

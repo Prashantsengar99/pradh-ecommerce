@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/api';
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -50,7 +51,7 @@ const Products = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('/api/admin/products');
+        const res = await apiFetch('/api/admin/products');
         const data = await res.json();
 
         if (data.success && data.products?.length > 0) {
@@ -105,7 +106,7 @@ const Products = () => {
   useEffect(() => {
     const fetchRatings = async () => {
       try {
-        const res = await fetch('/api/reviews/ratings/all');
+        const res = await apiFetch('/api/reviews/ratings/all');
         const data = await res.json();
         if (data.success && data.ratings) {
           setRatingsMap(data.ratings);
@@ -294,6 +295,7 @@ const Products = () => {
       {/* PAGE HEADER */}
       <div className="products-header">
         <div className="header-glow"></div>
+        <span className="products-kicker">Our Collection</span>
         <h1>
           Our <span className="highlight">Fuel Packs</span>
         </h1>
@@ -382,6 +384,7 @@ const Products = () => {
                         toggleWishlist(product);
                       }}
                       title={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                      aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                     >
                       {inWishlist ? <FaHeart /> : <FaRegHeart />}
                     </button>
@@ -425,7 +428,7 @@ const Products = () => {
                             </span>
                           </>
                         ) : (
-                          <span className="count" style={{ color: '#64748b', fontSize: '12px' }}>
+                          <span className="count no-reviews">
                             No reviews yet
                           </span>
                         )}
@@ -479,7 +482,7 @@ const Products = () => {
         <div className="quick-view-overlay" onClick={closeQuickView}>
           <div className="quick-view-modal" onClick={(e) => e.stopPropagation()}>
             {/* Close button */}
-            <button className="quick-view-close" onClick={closeQuickView} title="Close (ESC)">
+            <button className="quick-view-close" onClick={closeQuickView} title="Close (ESC)" aria-label="Close">
               <FaTimes />
             </button>
 
@@ -499,6 +502,7 @@ const Products = () => {
                         className="quick-view-nav prev"
                         onClick={prevQuickViewImage}
                         title="Previous image"
+                        aria-label="Previous image"
                       >
                         <FaChevronLeft />
                       </button>
@@ -506,6 +510,7 @@ const Products = () => {
                         className="quick-view-nav next"
                         onClick={nextQuickViewImage}
                         title="Next image"
+                        aria-label="Next image"
                       >
                         <FaChevronRight />
                       </button>
@@ -558,7 +563,7 @@ const Products = () => {
                         </span>
                       </>
                     ) : (
-                      <span className="quick-view-rating-text" style={{ color: '#64748b' }}>
+                      <span className="quick-view-rating-text no-reviews">
                         No reviews yet
                       </span>
                     );
@@ -606,6 +611,7 @@ const Products = () => {
                       <button
                         onClick={() => setQuickViewQty((q) => Math.max(1, q - 1))}
                         disabled={quickViewQty <= 1}
+                        aria-label="Decrease quantity"
                       >
                         <FaMinus />
                       </button>
@@ -613,6 +619,7 @@ const Products = () => {
                       <button
                         onClick={() => setQuickViewQty((q) => Math.min(quickViewProduct.stock || 99, q + 1))}
                         disabled={quickViewQty >= (quickViewProduct.stock || 99)}
+                        aria-label="Increase quantity"
                       >
                         <FaPlus />
                       </button>

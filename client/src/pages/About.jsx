@@ -32,7 +32,7 @@ const About = () => {
     const animateCounters = () => {
       const counters = document.querySelectorAll('.stat-item .number');
       counters.forEach((counter) => {
-        const target = parseInt(counter.dataset.target);
+        const target = parseFloat(counter.dataset.target);
         if (target === 0) return;
 
         const duration = 2000;
@@ -92,7 +92,7 @@ const About = () => {
   </div>
 
   <div className="about-hero-content">
-    <div className="badge"></div>
+    <div className="badge">Our Story</div>
           <h1>
             The <span className="highlight">PRADH</span> Story
           </h1>
@@ -149,8 +149,8 @@ const About = () => {
         <div className="story-section animate-on-scroll">
           <div className="story-content">
             <div className="story-text">
-              <h2 style={{ color: '#ffffff', fontSize: '24px', marginBottom: '12px' }}>
-                The <span style={{ color: 'var(--primary)' }}>Desi Fuel</span> Revolution
+              <h2 className="story-heading">
+                The <span className="highlight-text">Desi Fuel</span> Revolution
               </h2>
               <p>
                 At <strong>PRADH</strong>, we're committed to changing how modern India refuels.
@@ -161,7 +161,7 @@ const About = () => {
                 Our signature nutritional mix is <strong>handcrafted</strong> specifically for
                 health-conscious consumers who choose <strong>pure fuel</strong> over chemical shortcuts.
               </p>
-              <p style={{ marginBottom: 0 }}>
+              <p className="story-last">
                 <strong>Every batch</strong> undergoes traditional sand-roasting processes. This
                 maintains essential delicate amino structures, unlocks pristine natural taste profiles,
                 and facilitates <strong>effortless gut breakdown</strong> and absorption.
@@ -348,8 +348,8 @@ const About = () => {
               pure, natural, and affordable Desi Fuel available to every Indian who
               wants to live a healthier life.
             </p>
-            <p style={{ marginTop: '8px' }}>
-              <strong style={{ color: 'var(--primary)' }}>
+            <p className="founder-quote">
+              <strong className="quote-highlight">
                 "Just Pure Desi Fuel — No Fillers, No Preservatives"
               </strong>
             </p>
@@ -361,7 +361,7 @@ const About = () => {
       <section className="section">
         <div className="cta-banner animate-on-scroll">
           <h2>
-            Ready to <span style={{ color: 'var(--primary)' }}>Fuel Your Desi Strength</span>?
+            Ready to <span className="highlight">Fuel Your Desi Strength</span>?
           </h2>
           <p>Experience the power of traditional Indian nutrition today.</p>
           <Link to="/products" className="btn-primary">
