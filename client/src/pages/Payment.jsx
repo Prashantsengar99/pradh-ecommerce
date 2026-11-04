@@ -222,14 +222,10 @@ const Payment = () => {
       }
 
       // ✅ Step 2: Open Razorpay checkout
-      // ✅ FIXED (FE-PAY-001): Removed hardcoded LIVE key fallback.
-      // Now requires VITE_RAZORPAY_KEY_ID env var — no silent live-key fallback.
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-      if (!razorpayKey) {
-        showStatus('Payment gateway not configured. Please contact support.', 'error');
-        setLoading(false);
-        return;
-      }
+      // ⚠️ TESTING MODE: Hardcoded fallback key — env var nahi set ho to bhi chalega.
+      // PRODUCTION se pehle: (1) VITE_RAZORPAY_KEY_ID env var Vercel pe set karo,
+      // (2) ye fallback hata do, (3) leaked live key Razorpay dashboard se rotate karo.
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_T4HPQRHmf5mAUo';
 
       const options = {
         key: razorpayKey,
