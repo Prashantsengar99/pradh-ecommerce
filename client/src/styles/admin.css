@@ -38,6 +38,41 @@
 }
 
 /* ============================================
+   HEADING COLOR OVERRIDE — Fix for invisible white headings
+   Some global CSS rule sets h1/h2/h3 to white/light with !important,
+   which overrides inline styles. This forces DARK colors on ALL admin
+   headings so they are ALWAYS visible on the cream background.
+   ============================================ */
+.admin-body h1,
+.admin-body h2,
+.admin-body h3,
+.admin-body h4,
+.admin-body h5,
+.admin-body h6 {
+  color: var(--pf-chocolate, #39251B) !important;
+}
+
+/* Subtitles / paragraph text — warm muted brown (NOT light gray) */
+.admin-body p {
+  color: var(--pf-text-muted, #8A7560) !important;
+}
+
+/* Strong/bold text — dark chocolate */
+.admin-body strong {
+  color: var(--pf-chocolate, #39251B) !important;
+}
+
+/* Small text — warm muted */
+.admin-body small {
+  color: var(--pf-text-muted, #8A7560) !important;
+}
+
+/* Labels — warm soft brown */
+.admin-body label {
+  color: var(--pf-text-soft, #5C4A3D) !important;
+}
+
+/* ============================================
    SIDEBAR
    ============================================ */
 .sidebar {

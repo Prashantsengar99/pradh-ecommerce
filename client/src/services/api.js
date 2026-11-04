@@ -7,8 +7,23 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 export const apiFetch = async (path, options = {}) => {
   const url = `${API_BASE_URL}${path}`;
 
-  // Determine which token to use: admin routes use adminToken, everything else uses user token
-  const isAdminRoute = path.startsWith('/api/admin') || path === '/get-orders';
+  // ✅ FIXED: Complete admin route detection — pehle sirf /api/admin aur /get-orders
+  // detect hota tha. Ab /api/coupons, /api/reviews, /api/return-requests, /api/delivery-charge
+  // (PUT), aur /api/orders/:id (PUT) bhi admin token use karenge.
+  // Note: Public endpoints (GET /api/delivery-charge, POST /api/coupons/validate, etc.)
+  // pe bhi admin token bhej diya jaata hai — server ignore kar deta hai, koi harm nahi.
+  const isAdminRoute =
+    path.startsWith('/api/admin') ||
+    path === '/get-orders' ||
+    path === '/api/coupons' ||
+    path.startsWith('/api/coupons/') ||          // /api/coupons/:code (DELETE admin), /api/coupons/validate (POST public — token ignored)
+    path === '/api/reviews' ||                    // GET admin, POST public (token ignored)
+    path.startsWith('/api/reviews/') ||           // /api/reviews/:id (PUT/DELETE admin), /api/reviews/product/:id (GET public — token ignored)
+    path === '/api/return-requests' ||            // GET admin, POST public (token ignored)
+    path.startsWith('/api/return-requests/') ||   // /:id (PUT/DELETE admin, GET semi-public)
+    path === '/api/delivery-charge' ||            // GET public (token ignored), PUT admin
+    /^\/api\/orders\/[^/]+$/.test(path);          // exactly /api/orders/:id (PUT admin) — but NOT /api/orders/:id/cancel or /return (user-auth POST)
+
   const token = isAdminRoute
     ? localStorage.getItem('adminToken')
     : localStorage.getItem('token');
