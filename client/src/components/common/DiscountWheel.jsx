@@ -3,79 +3,56 @@ import { FaTimes, FaGift, FaSync, FaCopy, FaVolumeUp, FaVolumeMute } from 'react
 import toast from 'react-hot-toast';
 import './DiscountWheel.css';
 
+// ============================================
+// ALL SEGMENTS = PRADH20 (20% OFF)
+// Wheel kahin bhi ruke, user ko HAMESHA PRADH20 milega
+// ============================================
 const SEGMENTS = [
-  { label: '10% OFF', code: 'PRADH10', color: '#f59e0b', textColor: '#ffffff', discount: 10 },
-  { label: 'Try Again', code: null, color: '#1e293b', textColor: '#94a3b8', discount: 0 },
-  { label: '20% OFF', code: 'PRADH20', color: '#22c55e', textColor: '#ffffff', discount: 20 },
-  { label: '5% OFF', code: 'PRADH5', color: '#ef4444', textColor: '#ffffff', discount: 5 },
-  { label: 'Try Again', code: null, color: '#1e293b', textColor: '#94a3b8', discount: 0 },
-  { label: '15% OFF', code: 'PRADH15', color: '#8b5cf6', textColor: '#ffffff', discount: 15 },
-  { label: 'Try Again', code: null, color: '#1e293b', textColor: '#94a3b8', discount: 0 },
-  { label: '25% OFF', code: 'PRADH25', color: '#facc15', textColor: '#0f172a', discount: 25 },
+  { label: '20% OFF', code: 'PRADH20', color: '#39251B', textColor: '#F8F5EF', discount: 20 },
+  { label: '20% OFF', code: 'PRADH20', color: '#C49A45', textColor: '#FFFFFF', discount: 20 },
+  { label: '20% OFF', code: 'PRADH20', color: '#A67C2E', textColor: '#FFFFFF', discount: 20 },
+  { label: '20% OFF', code: 'PRADH20', color: '#8A5A3C', textColor: '#F8F5EF', discount: 20 },
+  { label: '20% OFF', code: 'PRADH20', color: '#39251B', textColor: '#F8F5EF', discount: 20 },
+  { label: '20% OFF', code: 'PRADH20', color: '#C49A45', textColor: '#FFFFFF', discount: 20 },
+  { label: '20% OFF', code: 'PRADH20', color: '#A67C2E', textColor: '#FFFFFF', discount: 20 },
+  { label: '20% OFF', code: 'PRADH20', color: '#8A5A3C', textColor: '#F8F5EF', discount: 20 },
 ];
 
-// Generate celebration sound with Web Audio API (no external file needed)
+// Celebration sound (Web Audio API — no external file)
 const playCelebrationSound = () => {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
-
     const ctx = new AudioContext();
 
-    // Play a happy tune: C-E-G-C (major chord arpeggio)
     const notes = [
-      { freq: 523.25, time: 0 },     // C5
-      { freq: 659.25, time: 0.12 },  // E5
-      { freq: 783.99, time: 0.24 },  // G5
-      { freq: 1046.5, time: 0.36 },  // C6
-      { freq: 1318.5, time: 0.48 },  // E6
+      { freq: 523.25, time: 0 },
+      { freq: 659.25, time: 0.12 },
+      { freq: 783.99, time: 0.24 },
+      { freq: 1046.5, time: 0.36 },
+      { freq: 1318.5, time: 0.48 },
     ];
 
     notes.forEach(({ freq, time }) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-
       osc.type = 'triangle';
       osc.frequency.value = freq;
-
       gain.gain.setValueAtTime(0, ctx.currentTime + time);
       gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + time + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + time + 0.6);
-
       osc.connect(gain);
       gain.connect(ctx.destination);
-
       osc.start(ctx.currentTime + time);
       osc.stop(ctx.currentTime + time + 0.7);
     });
 
-    // Add a "sparkle" sound effect
-    setTimeout(() => {
-      const sparkleOsc = ctx.createOscillator();
-      const sparkleGain = ctx.createGain();
-
-      sparkleOsc.type = 'sine';
-      sparkleOsc.frequency.setValueAtTime(2000, ctx.currentTime);
-      sparkleOsc.frequency.exponentialRampToValueAtTime(4000, ctx.currentTime + 0.3);
-
-      sparkleGain.gain.setValueAtTime(0.1, ctx.currentTime);
-      sparkleGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-
-      sparkleOsc.connect(sparkleGain);
-      sparkleGain.connect(ctx.destination);
-
-      sparkleOsc.start();
-      sparkleOsc.stop(ctx.currentTime + 0.3);
-    }, 600);
-
-    // Cleanup
     setTimeout(() => ctx.close(), 2000);
   } catch (err) {
     console.warn('Sound not available:', err);
   }
 };
 
-// Simple tick sound during spin
 const playTickSound = () => {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -83,19 +60,14 @@ const playTickSound = () => {
     const ctx = new AudioContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-
     osc.type = 'square';
     osc.frequency.value = 800;
-
     gain.gain.setValueAtTime(0.05, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-
     osc.connect(gain);
     gain.connect(ctx.destination);
-
     osc.start();
     osc.stop(ctx.currentTime + 0.05);
-
     setTimeout(() => ctx.close(), 200);
   } catch (err) {}
 };
@@ -114,11 +86,11 @@ const DiscountWheel = () => {
   useEffect(() => {
     const hasSeenWheel = localStorage.getItem('pradh_wheel_seen');
     if (!hasSeenWheel) {
-      setTimeout(() => setShow(true), 1000);
+      setTimeout(() => setShow(true), 1500);
     }
   }, []);
 
-  // Cleanup tick interval
+  // Cleanup
   useEffect(() => {
     return () => {
       if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
@@ -135,16 +107,15 @@ const DiscountWheel = () => {
     setSpinning(true);
     setResult(null);
 
-    // Start ticking sound
+    // Ticking sound during spin
     if (soundEnabled) {
       tickIntervalRef.current = setInterval(() => {
         playTickSound();
       }, 150);
     }
 
-    // Random index (bias towards winning)
-    const winningIndices = [0, 2, 3, 5, 7]; // indices with codes
-    const randomIndex = winningIndices[Math.floor(Math.random() * winningIndices.length)];
+    // ✅ Random index — ALL segments give PRADH20, so any landing = win
+    const randomIndex = Math.floor(Math.random() * SEGMENTS.length);
 
     const segmentAngle = 360 / SEGMENTS.length;
     const extraSpins = 6 + Math.floor(Math.random() * 3);
@@ -152,7 +123,7 @@ const DiscountWheel = () => {
 
     setRotation(targetAngle);
 
-    // Stop tick sound after 4.4s (before wheel stops)
+    // Stop tick sound
     setTimeout(() => {
       if (tickIntervalRef.current) {
         clearInterval(tickIntervalRef.current);
@@ -160,33 +131,27 @@ const DiscountWheel = () => {
       }
     }, 4400);
 
+    // ✅ ALWAYS show PRADH20 result (no "Try Again" — everyone wins)
     setTimeout(() => {
-      const wonSegment = SEGMENTS[randomIndex];
+      const wonSegment = SEGMENTS[randomIndex]; // Always PRADH20
       setSpinning(false);
+      setResult(wonSegment);
+      setShowCelebration(true);
+      localStorage.setItem('pradh_coupon', JSON.stringify(wonSegment));
+      localStorage.setItem('pradh_wheel_seen', 'true');
 
-      if (wonSegment.code) {
-        setResult(wonSegment);
-        setShowCelebration(true);
-        localStorage.setItem('pradh_coupon', JSON.stringify(wonSegment));
-        localStorage.setItem('pradh_wheel_seen', 'true');
-
-        // Play celebration sound
-        if (soundEnabled) {
-          playCelebrationSound();
-        }
-
-        setTimeout(() => setShowCelebration(false), 5000);
-      } else {
-        setResult({ label: 'Try Again', code: null, discount: 0 });
-        localStorage.setItem('pradh_wheel_seen', 'true');
+      if (soundEnabled) {
+        playCelebrationSound();
       }
+
+      setTimeout(() => setShowCelebration(false), 5000);
     }, 4500);
   };
 
   const copyCoupon = () => {
     if (result?.code) {
       navigator.clipboard.writeText(result.code);
-      toast.success('Coupon copied! 🎉');
+      toast.success('Coupon PRADH20 copied! 🎉');
     }
   };
 
@@ -203,8 +168,7 @@ const DiscountWheel = () => {
       {/* CELEBRATION OVERLAY */}
       {showCelebration && (
         <div className="celebration-overlay">
-          {/* Balloons */}
-          {[...Array(25)].map((_, i) => (
+          {[...Array(20)].map((_, i) => (
             <div
               key={`balloon-${i}`}
               className="balloon"
@@ -212,31 +176,14 @@ const DiscountWheel = () => {
                 left: `${Math.random() * 100}%`,
                 animationDelay: `${Math.random() * 2}s`,
                 animationDuration: `${3 + Math.random() * 2}s`,
-                fontSize: `${30 + Math.random() * 20}px`,
+                fontSize: `${28 + Math.random() * 16}px`,
               }}
             >
-              {['🎈', '🎈', '🎈', '🎉', '🎊'][i % 5]}
+              {['🎉', '🎊', '✨', '⭐'][i % 4]}
             </div>
           ))}
 
-          {/* Fireworks / Patake */}
-          {[...Array(25)].map((_, i) => (
-            <div
-              key={`firework-${i}`}
-              className="firework"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 70}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                fontSize: `${20 + Math.random() * 25}px`,
-              }}
-            >
-              {['✨', '💥', '⭐', '🌟', '💫', '🎆'][i % 6]}
-            </div>
-          ))}
-
-          {/* Confetti dots */}
-          {[...Array(80)].map((_, i) => (
+          {[...Array(60)].map((_, i) => (
             <div
               key={`confetti-${i}`}
               className="confetti"
@@ -244,13 +191,12 @@ const DiscountWheel = () => {
                 left: `${Math.random() * 100}%`,
                 animationDelay: `${Math.random() * 3}s`,
                 animationDuration: `${2 + Math.random() * 2}s`,
-                background: ['#facc15', '#ef4444', '#22c55e', '#8b5cf6', '#f59e0b', '#ec4899', '#3b82f6'][i % 7],
+                background: ['#C49A45', '#A67C2E', '#D9B872', '#8A5A3C', '#39251B'][i % 5],
                 transform: `rotate(${Math.random() * 360}deg)`,
               }}
             />
           ))}
 
-          {/* Glow burst */}
           <div className="celebration-glow"></div>
         </div>
       )}
@@ -258,7 +204,7 @@ const DiscountWheel = () => {
       {/* MODAL */}
       <div className="wheel-overlay" onClick={!spinning && !result ? handleSkip : undefined}>
         <div className="wheel-modal" onClick={(e) => e.stopPropagation()}>
-          {/* TOP BAR: Skip + Sound toggle */}
+          {/* TOP BAR */}
           <div className="wheel-top-bar">
             <button
               className="wheel-sound-btn"
@@ -275,26 +221,17 @@ const DiscountWheel = () => {
           {/* HEADER */}
           <div className="wheel-header">
             <div className="wheel-icon">🎁</div>
-            <div className="diwali-lamps">
-              <span>🪔</span>
-              <span>🎆</span>
-              <span>🪔</span>
-            </div>
-            <h2>
-              <span>Diwali Special</span>
-            </h2>
-            <h3 className="wheel-subtitle">
-              Spin & Win up to <strong>25% OFF</strong>!
-            </h3>
-            <p>Limited time offer 🎇</p>
+            <h2>Spin &amp; Win</h2>
+            <p className="wheel-subtitle">
+              You're guaranteed <strong>20% OFF</strong>!
+            </p>
+            <p className="wheel-tagline">Spin the wheel to reveal your coupon</p>
           </div>
 
           {/* WHEEL */}
           <div className="wheel-container">
-            {/* Top pointer */}
             <div className="wheel-pointer">▼</div>
 
-            {/* Rotating wheel */}
             <div
               ref={wheelRef}
               className={`wheel ${spinning ? 'spinning' : ''}`}
@@ -312,7 +249,7 @@ const DiscountWheel = () => {
                     className="wheel-segment"
                     style={{
                       transform: `rotate(${angle}deg)`,
-                      background: `linear-gradient(135deg, ${segment.color}, ${segment.color}dd)`,
+                      background: segment.color,
                     }}
                   >
                     <span
@@ -327,13 +264,12 @@ const DiscountWheel = () => {
                 );
               })}
 
-              {/* Wheel center */}
               <div className="wheel-center">
-                <div className="wheel-center-inner">🎉</div>
+                <div className="wheel-center-inner">🎁</div>
               </div>
             </div>
 
-            {/* Decorative dots around wheel */}
+            {/* Decorative dots */}
             <div className="wheel-dots">
               {[...Array(16)].map((_, i) => (
                 <div
@@ -347,47 +283,22 @@ const DiscountWheel = () => {
             </div>
           </div>
 
-          {/* RESULT */}
+          {/* RESULT — always PRADH20 */}
           {result && (
-            <div className={`wheel-result ${result.code ? 'win' : 'lose'}`}>
-              {result.code ? (
-                <>
-                  <div className="result-emoji">🎉</div>
-                  <h3>Congratulations!</h3>
-                  <p className="result-subtitle">
-                    You won <strong>{result.discount}% OFF</strong> 🎊
-                  </p>
-                  <div className="coupon-code" onClick={copyCoupon}>
-                    <span>{result.code}</span>
-                    <FaCopy />
-                  </div>
-                  <p className="coupon-hint">Click to copy • Use at checkout</p>
-                  <button className="result-btn" onClick={closeResult}>
-                    Start Shopping →
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="result-emoji">😢</div>
-                  <h3>Better luck next time!</h3>
-                  <p className="result-subtitle">
-                    But hey, you still get <strong>5% OFF</strong> with code
-                  </p>
-                  <div
-                    className="coupon-code"
-                    onClick={() => {
-                      navigator.clipboard.writeText('WELCOME5');
-                      toast.success('Coupon copied!');
-                    }}
-                  >
-                    <span>WELCOME5</span>
-                    <FaCopy />
-                  </div>
-                  <button className="result-btn" onClick={closeResult}>
-                    Continue →
-                  </button>
-                </>
-              )}
+            <div className="wheel-result win">
+              <div className="result-emoji">🎉</div>
+              <h3>Congratulations!</h3>
+              <p className="result-subtitle">
+                You won <strong>20% OFF</strong> 🎊
+              </p>
+              <div className="coupon-code" onClick={copyCoupon}>
+                <span>PRADH20</span>
+                <FaCopy />
+              </div>
+              <p className="coupon-hint">Click to copy • Use at checkout</p>
+              <button className="result-btn" onClick={closeResult}>
+                Start Shopping →
+              </button>
             </div>
           )}
 
@@ -412,17 +323,6 @@ const DiscountWheel = () => {
 };
 
 export default DiscountWheel;
-
-
-
-
-
-
-
-
-
-
-
 
 
 
