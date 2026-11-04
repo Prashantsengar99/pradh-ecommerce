@@ -10,6 +10,9 @@ import {
 import toast from 'react-hot-toast';
 import '/src/styles/products.css';
 
+// ✅ FIXED: FALLBACK_PRODUCTS ab sirf tab use hoga jab server down ho
+// ya database empty ho. Normal case mein HAMESHA database se products aayenge.
+// Agar database mein 4 products hain to 4 hi dikhenge — fake products NAHI.
 const FALLBACK_PRODUCTS = [
   { id: 'p1', name: 'PRADH Desi Fuel Premium', price: 599, category: 'premium', image: '/product1.jpeg', stock: 50, badge: 'hot', description: 'Premium blend with extra nuts & ashwagandha for ultimate energy.' },
   { id: 'p2', name: 'PRADH Desi Fuel Classic', price: 349, category: 'classic', image: '/product2.jpeg', stock: 35, badge: 'new', description: 'Classic Desi blend for daily nutrition & wellness.' },
@@ -40,6 +43,10 @@ const Products = () => {
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
 
+  // ✅ NEW: Track whether products came from DB or fallback
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [serverError, setServerError] = useState(false);
+
   // ✅ NEW: Quick View Modal state
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [quickViewImageIndex, setQuickViewImageIndex] = useState(0);
@@ -47,14 +54,25 @@ const Products = () => {
 
   const PER_PAGE = 8;
 
-  // Load products
+  // ✅ FIXED: Load products from PUBLIC /api/products endpoint (not /api/admin/products)
+  // Agar database mein products hain (chahe 4 hi hon) to wahi dikhenge.
+  // FALLBACK sirf tab use hoga jab:
+  //   1. Server down hai (network error)
+  //   2. Server 404/error return kare
+  //   3. Database bilkul empty hai (0 products)
   useEffect(() => {
     const fetchProducts = async () => {
+      setLoading(true);
+      setServerError(false);
+      setUsingFallback(false);
+
       try {
-        const res = await apiFetch('/api/admin/products');
+        // ✅ Public endpoint — koi auth nahi chahiye
+        const res = await apiFetch('/api/products');
         const data = await res.json();
 
-        if (data.success && data.products?.length > 0) {
+        if (data.success && data.products && data.products.length > 0) {
+          // ✅ Database se products mile — map karke set karo
           const mapped = data.products.map((p) => {
             const mainImage = p.image?.startsWith('http') || p.image?.startsWith('/')
               ? p.image
@@ -72,7 +90,7 @@ const Products = () => {
               category: p.category || 'classic',
               image: mainImage,
               images,
-              stock: p.stock ?? 50,
+              stock: p.stock ?? 0,
               badge: p.badge || null,
               description: p.description || 'Premium Desi Fuel blend',
               sku: p.sku || 'N/A',
@@ -83,18 +101,27 @@ const Products = () => {
             };
           });
           setAllProducts(mapped);
+          // ✅ usingFallback = false (DB products use ho rahe hain)
         } else {
+          // ⚠️ Database mein 0 products hain — fallback use karna padega
+          // Lekin user ko batao ki ye demo products hain
+          console.warn('⚠️ Database mein koi product nahi mila. Demo products dikh rahe hain.');
           setAllProducts(FALLBACK_PRODUCTS.map((p) => ({
             ...p,
             images: [p.image, '/product11.jpeg', p.image],
           })));
+          setUsingFallback(true);
         }
       } catch (err) {
-        console.warn('Server not available, using fallback products');
+        // ⚠️ Server down hai ya network error — fallback use karo
+        console.warn('⚠️ Server se products fetch nahi ho sake:', err.message);
+        console.warn('⚠️ Demo products dikh rahe hain. Server check karo.');
         setAllProducts(FALLBACK_PRODUCTS.map((p) => ({
           ...p,
           images: [p.image, '/product11.jpeg', p.image],
         })));
+        setUsingFallback(true);
+        setServerError(true);
       } finally {
         setLoading(false);
       }
@@ -190,9 +217,13 @@ const Products = () => {
         break;
     }
 
+    // ✅ FIXED (FE-PROD-LIST-002): Fabricated originalPrice hata diya.
+    // Pehle: p.originalPrice || (p.price > 300 ? Math.round(p.price * 1.2) : null)
+    // Ye fake "was" prices banata tha — Consumer Protection Act ke under illegal.
+    // Ab sirf server-provided originalPrice use hota hai.
     return result.map((p) => ({
       ...p,
-      originalPrice: p.originalPrice || (p.price > 300 ? Math.round(p.price * 1.2) : null),
+      originalPrice: p.originalPrice || null,
     }));
   }, [allProducts, filter, sort, searchQuery, ratingsMap]);
 
@@ -232,9 +263,14 @@ const Products = () => {
     closeQuickView();
   };
 
-  // Add to cart
+  // Add to cart — wrapped in try/catch for malformed localStorage
   const handleAddToCart = (product, qty = 1) => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    let cart = [];
+    try {
+      cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    } catch {
+      cart = [];
+    }
     const existing = cart.find((item) => item.id === product.id);
 
     if (existing) {
@@ -307,6 +343,26 @@ const Products = () => {
         )}
       </div>
 
+      {/* ✅ NEW: Fallback warning banner — sirf tab dikhega jab server down ho ya DB empty ho */}
+      {usingFallback && !loading && (
+        <div style={{
+          background: 'rgba(250, 204, 21, 0.1)',
+          border: '1px solid rgba(250, 204, 21, 0.3)',
+          borderRadius: '10px',
+          padding: '12px 20px',
+          margin: '0 16px 20px',
+          color: '#856404',
+          fontSize: '14px',
+          textAlign: 'center',
+        }}>
+          {serverError ? (
+            <>⚠️ <strong>Server se connect nahi ho pa raha.</strong> Abhi demo products dikh rahe hain. Backend server check karo.</>
+          ) : (
+            <>⚠️ <strong>Database mein koi product nahi mila.</strong> Abhi demo products dikh rahe hain. Admin panel se products add karo.</>
+          )}
+        </div>
+      )}
+
       {/* FILTER SECTION */}
       <div className="filter-section">
         <div className="filter-container">
@@ -316,6 +372,7 @@ const Products = () => {
                 key={f.key}
                 className={`filter-btn ${filter === f.key ? 'active' : ''}`}
                 onClick={() => setFilter(f.key)}
+                aria-pressed={filter === f.key}
               >
                 {f.icon} {f.label}
               </button>
@@ -324,7 +381,7 @@ const Products = () => {
 
           <div className="filter-right">
             <span className="product-count">
-              Showing <span>{visible.length}</span> products
+              Showing <span>{visible.length}</span> of <span>{filtered.length}</span> products
             </span>
             <select value={sort} onChange={(e) => setSort(e.target.value)}>
               <option value="popular">🔥 Most Popular</option>
@@ -363,7 +420,8 @@ const Products = () => {
                   product.badge === 'hot' ? '🔥 Hot' :
                   product.badge === 'new' ? '✨ New' : '';
 
-                const inStock = (product.stock ?? 50) > 0;
+                // ✅ FIXED (FE-PROD-006): stock ?? 0 (not ?? 50)
+                const inStock = (product.stock ?? 0) > 0;
                 const inWishlist = isInWishlist(product.id);
 
                 const productRating = ratingsMap[product.id]?.avgRating || 0;
@@ -441,7 +499,8 @@ const Products = () => {
                           <span className="product-price">
                             ₹{product.price}
                           </span>
-                          {product.originalPrice && (
+                          {/* ✅ FIXED: Sirf server-provided originalPrice dikhao (fake fabrication hata diya) */}
+                          {product.originalPrice && product.originalPrice > product.price && (
                             <span className="original">₹{product.originalPrice}</span>
                           )}
                         </div>
@@ -576,7 +635,8 @@ const Products = () => {
                 {/* Price */}
                 <div className="quick-view-price-box">
                   <span className="quick-view-price">₹{quickViewProduct.price}</span>
-                  {quickViewProduct.originalPrice && (
+                  {/* ✅ FIXED: Sirf server-provided originalPrice dikhao */}
+                  {quickViewProduct.originalPrice && quickViewProduct.originalPrice > quickViewProduct.price && (
                     <>
                       <span className="quick-view-original">₹{quickViewProduct.originalPrice}</span>
                       <span className="quick-view-discount">
