@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaSearch, FaShoppingCart, FaUser, FaHome, FaBox, FaLeaf, FaEnvelope, FaShoppingBag, FaTimes } from 'react-icons/fa';
+import { apiFetch } from '../../services/api';
 import '../../styles/navbar.css';
 
 const Navbar = () => {
@@ -23,27 +24,35 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Cart badge
+  // ✅ FIXED: Removed 1.5s setInterval polling — sirf 'storage' event use karte hain
+  // (cart update tabhi hota hai jab koi item add/remove ho, polling ki zaroorat nahi)
   useEffect(() => {
     const updateCart = () => {
-      const cart = JSON.parse(localStorage.getItem('cart')) || [];
-      const total = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-      setCartCount(total);
+      try {
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const total = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        setCartCount(total);
+      } catch {
+        setCartCount(0);
+      }
     };
     updateCart();
     window.addEventListener('storage', updateCart);
-    const interval = setInterval(updateCart, 1500);
+    // ✅ Also listen for custom 'storage' events dispatched by cart actions
+    window.addEventListener('cart-updated', updateCart);
     return () => {
       window.removeEventListener('storage', updateCart);
-      clearInterval(interval);
+      window.removeEventListener('cart-updated', updateCart);
     };
   }, []);
 
-  // ✅ Load all products once (for live search)
+  // ✅ FIXED: Use apiFetch with PUBLIC /api/products endpoint (was raw fetch /api/admin/products)
+  // /api/admin/products needs admin token → 401 for normal users + raw fetch breaks on Vercel
+  // /api/products is public, returns only active products, works with apiFetch (VITE_API_URL)
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('/api/admin/products');
+        const res = await apiFetch('/api/products');
         const data = await res.json();
         if (data.success && data.products) {
           setAllProducts(
@@ -79,7 +88,7 @@ const Navbar = () => {
         p.name.toLowerCase().includes(q) ||
         (p.category && p.category.toLowerCase().includes(q))
       )
-      .slice(0, 6); // top 6 suggestions
+      .slice(0, 6);
 
     setSuggestions(filtered);
     setShowSuggestions(filtered.length > 0);
@@ -100,7 +109,6 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ✅ Submit search → go to products page
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -110,7 +118,6 @@ const Navbar = () => {
     }
   };
 
-  // ✅ Keyboard navigation (arrow up/down + enter)
   const handleKeyDown = (e) => {
     if (!showSuggestions || suggestions.length === 0) return;
 
@@ -136,7 +143,6 @@ const Navbar = () => {
     }
   };
 
-  // ✅ Click suggestion → go to product detail
   const handleSuggestionClick = (product) => {
     navigate(`/product/${product.id}`);
     setSearchQuery('');
@@ -178,6 +184,7 @@ const Navbar = () => {
                 onFocus={() => searchQuery.trim().length >= 2 && setShowSuggestions(true)}
                 onKeyDown={handleKeyDown}
                 autoComplete="off"
+                aria-label="Search products"
               />
               {searchQuery && (
                 <button

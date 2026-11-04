@@ -1,5 +1,5 @@
 /* =====================================================================
-   PRADH DESI FUEL — FOOTER (Simple & Clean)
+   PRADH DESI FUEL — FOOTER (Compact & Refined)
    Warm Editorial Luxury Design System
    ===================================================================== */
 
@@ -30,23 +30,23 @@
 }
 
 .pf-footer-accent {
-  height: 2px;
+  height: 1px;
   background: linear-gradient(90deg, transparent, var(--pf-gold) 50%, transparent);
 }
 
 /* =====================================================================
-   MAIN GRID
+   MAIN GRID — COMPACT
    ===================================================================== */
 .pf-footer-main {
-  padding: 56px 24px 40px;
+  padding: 28px 24px 16px;
 }
 
 .pf-footer-inner {
   max-width: 1100px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
-  gap: 40px;
+  grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
+  gap: 24px;
   align-items: start;
 }
 
@@ -54,20 +54,20 @@
    BRAND COLUMN
    ===================================================================== */
 .pf-footer-brand-col {
-  max-width: 340px;
+  max-width: 300px;
 }
 
 .pf-footer-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   text-decoration: none;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
 .pf-footer-logo-mark {
-  height: 42px;
-  width: 42px;
+  height: 36px;
+  width: 36px;
   border-radius: var(--pf-radius-sm);
   background: linear-gradient(135deg, var(--pf-gold), var(--pf-gold-deep));
   display: flex;
@@ -76,7 +76,7 @@
   color: var(--pf-chocolate);
   font-family: var(--pf-font-display);
   font-weight: 800;
-  font-size: 21px;
+  font-size: 18px;
 }
 
 .pf-footer-logo-text {
@@ -87,7 +87,7 @@
 
 .pf-footer-logo-text .brand {
   font-family: var(--pf-font-display);
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 800;
   color: var(--pf-cream);
   white-space: nowrap;
@@ -98,30 +98,30 @@
 }
 
 .pf-footer-logo-text .tagline {
-  font-size: 9px;
+  font-size: 8px;
   color: var(--pf-gold-soft);
   letter-spacing: 2px;
   text-transform: uppercase;
   font-weight: 600;
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .pf-footer-desc {
-  font-size: 14px;
-  line-height: 1.7;
-  color: rgba(248, 245, 239, 0.6);
-  margin: 0 0 20px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(248, 245, 239, 0.55);
+  margin: 0 0 12px;
 }
 
-/* Social icons */
+/* Social icons — compact */
 .pf-footer-social {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .pf-social-btn {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: rgba(248, 245, 239, 0.06);
   border: 1px solid rgba(196, 154, 69, 0.2);
@@ -129,7 +129,7 @@
   align-items: center;
   justify-content: center;
   color: var(--pf-gold-soft);
-  font-size: 14px;
+  font-size: 13px;
   text-decoration: none;
   transition: all var(--pf-dur) var(--pf-ease);
 }
@@ -150,11 +150,11 @@
 
 .pf-footer-heading {
   font-family: var(--pf-font-display);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--pf-gold);
-  margin: 0 0 16px;
-  padding-bottom: 10px;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
   position: relative;
 }
 
@@ -163,7 +163,7 @@
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 24px;
+  width: 20px;
   height: 2px;
   background: var(--pf-gold);
   border-radius: 2px;
@@ -175,12 +175,12 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
 }
 
 .pf-footer-list li a {
-  font-size: 14px;
-  color: rgba(248, 245, 239, 0.6);
+  font-size: 13px;
+  color: rgba(248, 245, 239, 0.55);
   text-decoration: none;
   transition: color var(--pf-dur) var(--pf-ease);
 }
@@ -190,23 +190,52 @@
 }
 
 /* =====================================================================
-   BOTTOM BAR
+   CONTACT COLUMN
+   ===================================================================== */
+.pf-footer-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(248, 245, 239, 0.55);
+  margin-bottom: 7px;
+}
+
+.pf-footer-contact-item i {
+  color: var(--pf-gold-soft);
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+}
+
+.pf-footer-contact-item a {
+  color: rgba(248, 245, 239, 0.55);
+  text-decoration: none;
+  transition: color var(--pf-dur) var(--pf-ease);
+}
+
+.pf-footer-contact-item a:hover {
+  color: var(--pf-gold);
+}
+
+/* =====================================================================
+   BOTTOM BAR — THIN
    ===================================================================== */
 .pf-footer-bottom {
-  border-top: 1px solid rgba(196, 154, 69, 0.15);
-  padding: 20px 24px;
+  border-top: 1px solid rgba(196, 154, 69, 0.12);
+  padding: 10px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
   max-width: 1100px;
   margin: 0 auto;
 }
 
 .pf-footer-copy {
-  font-size: 13px;
-  color: rgba(248, 245, 239, 0.55);
+  font-size: 12px;
+  color: rgba(248, 245, 239, 0.45);
   margin: 0;
 }
 
@@ -219,13 +248,13 @@
 .pf-feedback-link {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 18px;
+  gap: 6px;
+  padding: 6px 14px;
   border-radius: var(--pf-radius-pill);
   background: rgba(196, 154, 69, 0.1);
-  border: 1px solid rgba(196, 154, 69, 0.3);
+  border: 1px solid rgba(196, 154, 69, 0.25);
   color: var(--pf-gold-soft);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   text-decoration: none;
   transition: all var(--pf-dur) var(--pf-ease);
@@ -242,25 +271,40 @@
    ===================================================================== */
 @media (max-width: 768px) {
   .pf-footer-main {
-    padding: 44px 20px 32px;
+    padding: 24px 20px 14px;
   }
 
   .pf-footer-inner {
     grid-template-columns: 1fr 1fr;
-    gap: 28px;
+    gap: 20px;
   }
 
   .pf-footer-brand-col {
     grid-column: 1 / -1;
     max-width: none;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
+    text-align: center;
+  }
+
+  .pf-footer-logo {
+    justify-content: center;
+  }
+
+  .pf-footer-social {
+    justify-content: center;
+  }
+
+  .pf-footer-desc {
+    max-width: 380px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .pf-footer-bottom {
     flex-direction: column;
     text-align: center;
-    gap: 12px;
-    padding: 18px 20px;
+    gap: 8px;
+    padding: 10px 20px;
   }
 }
 
@@ -269,31 +313,53 @@
    ===================================================================== */
 @media (max-width: 480px) {
   .pf-footer-main {
-    padding: 36px 16px 28px;
+    padding: 20px 16px 12px;
   }
 
   .pf-footer-inner {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 16px;
   }
 
   .pf-footer-logo-mark {
-    height: 38px;
-    width: 38px;
-    font-size: 19px;
+    height: 34px;
+    width: 34px;
+    font-size: 17px;
   }
 
   .pf-footer-logo-text .brand {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .pf-footer-desc {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .pf-social-btn {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .pf-footer-heading {
     font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .pf-footer-list li a {
+    font-size: 12.5px;
+  }
+
+  .pf-footer-bottom {
+    padding: 8px 16px;
+  }
+
+  .pf-footer-copy {
+    font-size: 11px;
+  }
+
+  .pf-feedback-link {
+    font-size: 11px;
+    padding: 5px 12px;
   }
 }

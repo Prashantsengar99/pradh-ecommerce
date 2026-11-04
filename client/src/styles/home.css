@@ -77,9 +77,16 @@
   display: block;
 }
 
+/* ✅ FIXED: Buttons ke color ko override nahi karta — 'color: inherit'
+   sirf non-button links pe lagta hai. Pehle '.pf-home a' (specificity 0,1,1)
+   '.pf-btn--primary' (0,1,0) ko override kar raha tha → chocolate text on
+   chocolate bg = INVISIBLE. Ab ':not(.pf-btn)' se buttons excluded hain. */
 .pf-home a {
-  color: inherit;
   text-decoration: none;
+}
+
+.pf-home a:not(.pf-btn) {
+  color: inherit;
 }
 
 /* =====================================================================
@@ -239,6 +246,7 @@
 .pf-hero-title-accent {
   display: block;
   font-weight: 800;
+  color: var(--pf-gold-deep); /* ✅ FALLBACK: gradient fail hone pe text invisible nahi hoga */
   background: linear-gradient(120deg, var(--pf-gold-deep) 0%, var(--pf-brown) 50%, var(--pf-gold-deep) 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -767,7 +775,8 @@
   font-family: var(--pf-font-display);
   font-size: 14px;
   font-weight: 700;
-  color: var(--pf-sand);
+  color: var(--pf-brown); /* ✅ was var(--pf-sand) #D8C6B1 — white pe INVISIBLE tha, ab brown visible */
+  opacity: 0.4;
   letter-spacing: 1px;
 }
 
@@ -1238,6 +1247,7 @@
 
 .pf-cta-accent {
   font-style: italic;
+  color: var(--pf-gold); /* ✅ FALLBACK: gradient fail hone pe text invisible nahi hoga */
   background: linear-gradient(120deg, var(--pf-gold-soft) 0%, var(--pf-gold) 50%, var(--pf-gold-soft) 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1268,7 +1278,7 @@
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(248, 245, 239, 0.6);
+  color: rgba(248, 245, 239, 0.85); /* ✅ was 0.6 — dark bg pe bahut low contrast, ab readable */
   border-right: 1px solid rgba(196, 154, 69, 0.3);
   padding-right: 14px;
 }

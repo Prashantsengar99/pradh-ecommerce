@@ -57,7 +57,7 @@ const AdminPanel = () => {
     try {
       const [prodRes, orderRes, reviewRes] = await Promise.all([
         apiFetch('/api/admin/products'),
-        fetch('/get-orders'),
+        apiFetch('/get-orders'),
         apiFetch('/api/reviews'),
       ]);
       const prodData = await prodRes.json();
@@ -79,7 +79,7 @@ const AdminPanel = () => {
 
   const loadOrders = async () => {
     try {
-      const res = await fetch('/get-orders');
+      const res = await apiFetch('/get-orders');
       const data = await res.json();
       if (data.success) setOrders(data.orders || []);
     } catch (err) { console.error(err); }
@@ -102,16 +102,16 @@ const AdminPanel = () => {
   };
 
   const loadReturns = async () => {
-  try {
-    const res = await apiFetch('/api/return-requests');
-    const data = await res.json();
-    if (data.success) setReturnRequests(data.requests || []);
-  } catch (err) { console.error(err); }
-};
+    try {
+      const res = await apiFetch('/api/return-requests');
+      const data = await res.json();
+      if (data.success) setReturnRequests(data.requests || []);
+    } catch (err) { console.error(err); }
+  };
 
   const loadCustomers = async () => {
     try {
-      const res = await fetch('/get-orders');
+      const res = await apiFetch('/get-orders');
       const data = await res.json();
       if (data.success && data.orders) {
         const map = new Map();
@@ -194,7 +194,7 @@ const AdminPanel = () => {
     const url = isEdit ? `/api/admin/products/${productForm.id}` : '/api/admin/products';
     const method = isEdit ? 'PUT' : 'POST';
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -316,35 +316,34 @@ const AdminPanel = () => {
     } catch (err) { toast.error('Error'); }
   };
 
-
   // RETURNS
-const updateReturnStatus = async (id, status) => {
-  if (!window.confirm(`Mark this request as "${status}"?`)) return;
-  try {
-    const res = await apiFetch(`/api/return-requests/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      toast.success(`Request ${status}!`);
-      loadReturns();
-    }
-  } catch (err) { toast.error('Error'); }
-};
+  const updateReturnStatus = async (id, status) => {
+    if (!window.confirm(`Mark this request as "${status}"?`)) return;
+    try {
+      const res = await apiFetch(`/api/return-requests/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Request ${status}!`);
+        loadReturns();
+      }
+    } catch (err) { toast.error('Error'); }
+  };
 
-const deleteReturn = async (id) => {
-  if (!window.confirm('Delete this request?')) return;
-  try {
-    const res = await apiFetch(`/api/return-requests/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      toast.success('Request deleted!');
-      loadReturns();
-    }
-  } catch (err) { toast.error('Error'); }
-};
+  const deleteReturn = async (id) => {
+    if (!window.confirm('Delete this request?')) return;
+    try {
+      const res = await apiFetch(`/api/return-requests/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Request deleted!');
+        loadReturns();
+      }
+    } catch (err) { toast.error('Error'); }
+  };
 
   // DELIVERY
   const updateDeliveryCharge = async () => {
@@ -1045,142 +1044,140 @@ const deleteReturn = async (id) => {
             </div>
           )}
 
-
-
-
+          {/* ===== RETURNS ===== */}
           {section === 'returns' && (
-  <div className="page-section">
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-      <div>
-        <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>↩️ Return / Replace Requests</h1>
-        <p style={{ color: '#94a3b8' }}>Manage customer return, replace & refund requests</p>
-      </div>
-      <button className="btn-primary" onClick={loadReturns}><FaSync /> Refresh</button>
-    </div>
+            <div className="page-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>↩️ Return / Replace Requests</h1>
+                  <p style={{ color: '#94a3b8' }}>Manage customer return, replace & refund requests</p>
+                </div>
+                <button className="btn-primary" onClick={loadReturns}><FaSync /> Refresh</button>
+              </div>
 
-    <div className="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Request ID</th>
-            <th>Customer</th>
-            <th>Order ID</th>
-            <th>Type</th>
-            <th>Reason</th>
-            <th>Status</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {returnRequests.map((r) => {
-            const typeLabel = { return: 'Return', replace: 'Replace', refund: 'Refund' }[r.requestType] || 'Return';
-            const typeColor = { return: '#3b82f6', replace: '#8b5cf6', refund: '#22c55e' }[r.requestType] || '#3b82f6';
-            const reasonLabel = {
-              damaged: 'Damaged', wrong: 'Wrong Product', missing: 'Missing Item',
-              quality: 'Quality Issue', other: 'Other',
-            }[r.reason] || r.reason;
-            const statusClass = {
-              pending: 'status-low-stock',
-              approved: 'status-active',
-              rejected: 'status-inactive',
-              resolved: 'status-active',
-            }[r.status] || 'status-pending';
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Request ID</th>
+                      <th>Customer</th>
+                      <th>Order ID</th>
+                      <th>Type</th>
+                      <th>Reason</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {returnRequests.map((r) => {
+                      const typeLabel = { return: 'Return', replace: 'Replace', refund: 'Refund' }[r.requestType] || 'Return';
+                      const typeColor = { return: '#3b82f6', replace: '#8b5cf6', refund: '#22c55e' }[r.requestType] || '#3b82f6';
+                      const reasonLabel = {
+                        damaged: 'Damaged', wrong: 'Wrong Product', missing: 'Missing Item',
+                        quality: 'Quality Issue', other: 'Other',
+                      }[r.reason] || r.reason;
+                      const statusClass = {
+                        pending: 'status-low-stock',
+                        approved: 'status-active',
+                        rejected: 'status-inactive',
+                        resolved: 'status-active',
+                      }[r.status] || 'status-pending';
 
-            return (
-              <tr key={r.id}>
-                <td>
-                  <span style={{ color: '#facc15', fontFamily: 'monospace', fontSize: '12px', fontWeight: '700' }}>{r.id}</span>
-                </td>
-                <td>
-                  <strong>{r.name}</strong><br />
-                  <small style={{ color: '#64748b' }}>{r.phone}</small>
-                </td>
-                <td>
-                  <span style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: '12px' }}>{r.orderId}</span>
-                  {r.productName && <><br /><small style={{ color: '#64748b' }}>{r.productName}</small></>}
-                </td>
-                <td>
-                  <span className="status-badge" style={{ background: `${typeColor}20`, color: typeColor, border: `1px solid ${typeColor}50` }}>
-                    {typeLabel}
-                  </span>
-                </td>
-                <td style={{ color: '#94a3b8', fontSize: '13px' }}>{reasonLabel}</td>
-                <td>
-                  <span className={`status-badge ${statusClass}`}>
-                    {r.status}
-                  </span>
-                </td>
-                <td style={{ color: '#94a3b8', fontSize: '12px' }}>
-                  {new Date(r.createdAt).toLocaleDateString('en-IN')}
-                </td>
-                <td>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    <button
-                      className="btn-info"
-                      onClick={() => setSelectedReturn(r)}
-                      style={{ padding: '4px 10px', fontSize: '11px' }}
-                      title="View details"
-                    >
-                      <FaEye />
-                    </button>
-                    {r.status === 'pending' && (
-                      <>
-                        <button
-                          className="btn-success"
-                          onClick={() => updateReturnStatus(r.id, 'approved')}
-                          style={{ padding: '4px 8px', fontSize: '11px' }}
-                          title="Approve"
-                        >
-                          <FaCheck />
-                        </button>
-                        <button
-                          className="btn-danger"
-                          onClick={() => updateReturnStatus(r.id, 'rejected')}
-                          style={{ padding: '4px 8px', fontSize: '11px' }}
-                          title="Reject"
-                        >
-                          <FaBan />
-                        </button>
-                      </>
+                      return (
+                        <tr key={r.id}>
+                          <td>
+                            <span style={{ color: '#facc15', fontFamily: 'monospace', fontSize: '12px', fontWeight: '700' }}>{r.id}</span>
+                          </td>
+                          <td>
+                            <strong>{r.name}</strong><br />
+                            <small style={{ color: '#64748b' }}>{r.phone}</small>
+                          </td>
+                          <td>
+                            <span style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: '12px' }}>{r.orderId}</span>
+                            {r.productName && <><br /><small style={{ color: '#64748b' }}>{r.productName}</small></>}
+                          </td>
+                          <td>
+                            <span className="status-badge" style={{ background: `${typeColor}20`, color: typeColor, border: `1px solid ${typeColor}50` }}>
+                              {typeLabel}
+                            </span>
+                          </td>
+                          <td style={{ color: '#94a3b8', fontSize: '13px' }}>{reasonLabel}</td>
+                          <td>
+                            <span className={`status-badge ${statusClass}`}>
+                              {r.status}
+                            </span>
+                          </td>
+                          <td style={{ color: '#94a3b8', fontSize: '12px' }}>
+                            {new Date(r.createdAt).toLocaleDateString('en-IN')}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              <button
+                                className="btn-info"
+                                onClick={() => setSelectedReturn(r)}
+                                style={{ padding: '4px 10px', fontSize: '11px' }}
+                                title="View details"
+                              >
+                                <FaEye />
+                              </button>
+                              {r.status === 'pending' && (
+                                <>
+                                  <button
+                                    className="btn-success"
+                                    onClick={() => updateReturnStatus(r.id, 'approved')}
+                                    style={{ padding: '4px 8px', fontSize: '11px' }}
+                                    title="Approve"
+                                  >
+                                    <FaCheck />
+                                  </button>
+                                  <button
+                                    className="btn-danger"
+                                    onClick={() => updateReturnStatus(r.id, 'rejected')}
+                                    style={{ padding: '4px 8px', fontSize: '11px' }}
+                                    title="Reject"
+                                  >
+                                    <FaBan />
+                                  </button>
+                                </>
+                              )}
+                              {r.status === 'approved' && (
+                                <button
+                                  className="btn-primary"
+                                  onClick={() => updateReturnStatus(r.id, 'resolved')}
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                  title="Mark as resolved"
+                                >
+                                  <FaCheck /> Resolve
+                                </button>
+                              )}
+                              {['rejected', 'resolved'].includes(r.status) && (
+                                <button
+                                  className="btn-danger"
+                                  onClick={() => deleteReturn(r.id)}
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                  title="Delete"
+                                >
+                                  <FaTrash />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {returnRequests.length === 0 && (
+                      <tr>
+                        <td colSpan="8" style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>
+                          No return requests yet
+                        </td>
+                      </tr>
                     )}
-                    {r.status === 'approved' && (
-                      <button
-                        className="btn-primary"
-                        onClick={() => updateReturnStatus(r.id, 'resolved')}
-                        style={{ padding: '4px 8px', fontSize: '11px' }}
-                        title="Mark as resolved"
-                      >
-                        <FaCheck /> Resolve
-                      </button>
-                    )}
-                    {['rejected', 'resolved'].includes(r.status) && (
-                      <button
-                        className="btn-danger"
-                        onClick={() => deleteReturn(r.id)}
-                        style={{ padding: '4px 8px', fontSize: '11px' }}
-                        title="Delete"
-                      >
-                        <FaTrash />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-          {returnRequests.length === 0 && (
-            <tr>
-              <td colSpan="8" style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>
-                No return requests yet
-              </td>
-            </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
 
           {/* ===== CUSTOMERS ===== */}
           {section === 'customers' && (
@@ -1261,7 +1258,7 @@ const deleteReturn = async (id) => {
               </div>
               <div style={{ marginBottom: '15px' }}>
                 <label className="form-label">Description</label>
-                <textarea className="form-input" rows="3" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}></textarea>
+                <textarea className="form-input" rows={3} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}></textarea>
               </div>
               <div style={{ marginBottom: '15px' }}>
                 <label className="form-label">Image URL</label>
@@ -1304,88 +1301,84 @@ const deleteReturn = async (id) => {
         </div>
       )}
 
-
-
-
-
       {/* RETURN DETAILS MODAL */}
-{selectedReturn && (
-  <div className="modal-overlay" onClick={() => setSelectedReturn(null)}>
-    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-      <button className="modal-close" onClick={() => setSelectedReturn(null)}>&times;</button>
-      <h3><FaUndoAlt /> Return Request Details</h3>
+      {selectedReturn && (
+        <div className="modal-overlay" onClick={() => setSelectedReturn(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedReturn(null)}>&times;</button>
+            <h3><FaUndoAlt /> Return Request Details</h3>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid #334155', flexWrap: 'wrap', gap: '10px' }}>
-        <div>
-          <span style={{ color: '#94a3b8', fontSize: '12px' }}>Request ID</span>
-          <div style={{ color: '#facc15', fontWeight: '700', fontSize: '18px' }}>{selectedReturn.id}</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <span style={{ color: '#94a3b8', fontSize: '12px' }}>Status</span>
-          <div><span className={`status-badge status-${selectedReturn.status === 'approved' ? 'active' : selectedReturn.status === 'rejected' ? 'inactive' : 'pending'}`}>{(selectedReturn.status || 'pending').toUpperCase()}</span></div>
-        </div>
-      </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid #334155', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <span style={{ color: '#94a3b8', fontSize: '12px' }}>Request ID</span>
+                <div style={{ color: '#facc15', fontWeight: '700', fontSize: '18px' }}>{selectedReturn.id}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ color: '#94a3b8', fontSize: '12px' }}>Status</span>
+                <div><span className={`status-badge status-${selectedReturn.status === 'approved' ? 'active' : selectedReturn.status === 'rejected' ? 'inactive' : 'pending'}`}>{(selectedReturn.status || 'pending').toUpperCase()}</span></div>
+              </div>
+            </div>
 
-      <div className="detail-grid">
-        <div className="detail-item"><div className="label">Customer Name</div><div className="value">{selectedReturn.name}</div></div>
-        <div className="detail-item"><div className="label">Phone (WhatsApp)</div><div className="value">{selectedReturn.phone}</div></div>
-        <div className="detail-item"><div className="label">Email</div><div className="value">{selectedReturn.email || 'N/A'}</div></div>
-        <div className="detail-item"><div className="label">Order ID</div><div className="value gold">{selectedReturn.orderId}</div></div>
-        <div className="detail-item"><div className="label">Product</div><div className="value">{selectedReturn.productName || 'N/A'}</div></div>
-        <div className="detail-item"><div className="label">Request Type</div><div className="value">{selectedReturn.requestType || 'return'}</div></div>
-        <div className="detail-item"><div className="label">Reason</div><div className="value">{selectedReturn.reason}</div></div>
-        <div className="detail-item"><div className="label">Delivery Date</div><div className="value">{selectedReturn.issueDate || 'N/A'}</div></div>
-        <div className="detail-item" style={{ gridColumn: 'span 2' }}>
-          <div className="label">Issue Description</div>
-          <div className="value" style={{ lineHeight: 1.6 }}>{selectedReturn.description}</div>
-        </div>
-        <div className="detail-item" style={{ gridColumn: 'span 2' }}>
-          <div className="label">Submitted On</div>
-          <div className="value">{new Date(selectedReturn.createdAt).toLocaleString('en-IN')}</div>
-        </div>
-      </div>
+            <div className="detail-grid">
+              <div className="detail-item"><div className="label">Customer Name</div><div className="value">{selectedReturn.name}</div></div>
+              <div className="detail-item"><div className="label">Phone (WhatsApp)</div><div className="value">{selectedReturn.phone}</div></div>
+              <div className="detail-item"><div className="label">Email</div><div className="value">{selectedReturn.email || 'N/A'}</div></div>
+              <div className="detail-item"><div className="label">Order ID</div><div className="value gold">{selectedReturn.orderId}</div></div>
+              <div className="detail-item"><div className="label">Product</div><div className="value">{selectedReturn.productName || 'N/A'}</div></div>
+              <div className="detail-item"><div className="label">Request Type</div><div className="value">{selectedReturn.requestType || 'return'}</div></div>
+              <div className="detail-item"><div className="label">Reason</div><div className="value">{selectedReturn.reason}</div></div>
+              <div className="detail-item"><div className="label">Delivery Date</div><div className="value">{selectedReturn.issueDate || 'N/A'}</div></div>
+              <div className="detail-item" style={{ gridColumn: 'span 2' }}>
+                <div className="label">Issue Description</div>
+                <div className="value" style={{ lineHeight: 1.6 }}>{selectedReturn.description}</div>
+              </div>
+              <div className="detail-item" style={{ gridColumn: 'span 2' }}>
+                <div className="label">Submitted On</div>
+                <div className="value">{new Date(selectedReturn.createdAt).toLocaleString('en-IN')}</div>
+              </div>
+            </div>
 
-      <div style={{ marginTop: '15px', padding: '12px 16px', background: 'rgba(37, 211, 102, 0.08)', border: '1px solid rgba(37, 211, 102, 0.3)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <FaWhatsapp style={{ color: '#25D366', fontSize: '20px' }} />
-        <span style={{ color: '#94a3b8', fontSize: '13px', flex: 1 }}>Contact customer on WhatsApp to resolve</span>
-        <a
-          href={`https://wa.me/${selectedReturn.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${selectedReturn.name}, regarding your ${selectedReturn.requestType} request (${selectedReturn.id}) for order ${selectedReturn.orderId}. Let's resolve this!`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-success"
-          style={{ padding: '8px 16px', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-        >
-          <FaWhatsapp /> WhatsApp
-        </a>
-      </div>
+            <div style={{ marginTop: '15px', padding: '12px 16px', background: 'rgba(37, 211, 102, 0.08)', border: '1px solid rgba(37, 211, 102, 0.3)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <FaWhatsapp style={{ color: '#25D366', fontSize: '20px' }} />
+              <span style={{ color: '#94a3b8', fontSize: '13px', flex: 1 }}>Contact customer on WhatsApp to resolve</span>
+              <a
+                href={`https://wa.me/${selectedReturn.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${selectedReturn.name}, regarding your ${selectedReturn.requestType} request (${selectedReturn.id}) for order ${selectedReturn.orderId}. Let's resolve this!`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-success"
+                style={{ padding: '8px 16px', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <FaWhatsapp /> WhatsApp
+              </a>
+            </div>
 
-      {selectedReturn.adminNote && (
-        <div style={{ marginTop: '15px', padding: '10px 15px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid #3b82f6', borderRadius: '8px', color: '#3b82f6', fontSize: '13px' }}>
-          <strong>Admin Note:</strong> {selectedReturn.adminNote}
+            {selectedReturn.adminNote && (
+              <div style={{ marginTop: '15px', padding: '10px 15px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid #3b82f6', borderRadius: '8px', color: '#3b82f6', fontSize: '13px' }}>
+                <strong>Admin Note:</strong> {selectedReturn.adminNote}
+              </div>
+            )}
+
+            {selectedReturn.status === 'pending' && (
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button
+                  className="btn-success"
+                  onClick={() => { updateReturnStatus(selectedReturn.id, 'approved'); setSelectedReturn(null); }}
+                  style={{ flex: 1, justifyContent: 'center', padding: '12px' }}
+                >
+                  <FaCheck /> Approve
+                </button>
+                <button
+                  className="btn-danger"
+                  onClick={() => { updateReturnStatus(selectedReturn.id, 'rejected'); setSelectedReturn(null); }}
+                  style={{ flex: 1, justifyContent: 'center', padding: '12px' }}
+                >
+                  <FaBan /> Reject
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
-
-      {selectedReturn.status === 'pending' && (
-        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-          <button
-            className="btn-success"
-            onClick={() => { updateReturnStatus(selectedReturn.id, 'approved'); setSelectedReturn(null); }}
-            style={{ flex: 1, justifyContent: 'center', padding: '12px' }}
-          >
-            <FaCheck /> Approve
-          </button>
-          <button
-            className="btn-danger"
-            onClick={() => { updateReturnStatus(selectedReturn.id, 'rejected'); setSelectedReturn(null); }}
-            style={{ flex: 1, justifyContent: 'center', padding: '12px' }}
-          >
-            <FaBan /> Reject
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-)}
 
       {/* ORDER DETAILS MODAL */}
       {selectedOrder && (

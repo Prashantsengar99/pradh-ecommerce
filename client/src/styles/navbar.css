@@ -1,11 +1,8 @@
 /* =====================================================================
    PRADH DESI FUEL — NAVBAR
    Warm Editorial Luxury Design System
-   Palette: Cream / Beige / Sand / Earth Brown / Chocolate / Gold
-   Type:    Playfair Display (brand) + Inter (body)
    ===================================================================== */
 
-/* ---------- Design Tokens (with fallbacks so navbar works standalone) ---------- */
 :root {
   --pf-cream: #F8F5EF;
   --pf-beige: #E9DFD1;
@@ -354,7 +351,7 @@
 }
 
 /* =====================================================================
-   BOTTOM NAVIGATION (Mobile only)
+   BOTTOM NAVIGATION (Mobile only) — BIGGER ICONS & LABELS
    ===================================================================== */
 .bottom-nav {
   display: none;
@@ -377,13 +374,13 @@
   align-items: center;
   justify-content: center;
   flex: 1;
-  padding: 9px 4px 7px;
+  padding: 10px 4px 8px;
   color: var(--pf-text-muted);
   text-decoration: none;
-  font-size: 10px;
+  font-size: 11px;            /* ✅ was 10px → bigger */
   font-weight: 600;
   transition: color var(--pf-dur) var(--pf-ease), background var(--pf-dur) var(--pf-ease);
-  min-height: 60px;
+  min-height: 64px;           /* ✅ was 60px → bigger touch target */
   position: relative;
   -webkit-tap-highlight-color: transparent;
   font-family: var(--pf-font-body);
@@ -413,20 +410,21 @@
 }
 
 .bottom-nav-icon {
-  font-size: 20px;
-  margin-bottom: 3px;
+  font-size: 22px;            /* ✅ was 20px → bigger icon */
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  width: 24px;
-  height: 24px;
+  width: 26px;                /* ✅ was 24px */
+  height: 26px;               /* ✅ was 24px */
 }
 
 .bottom-nav-label {
-  font-size: 10px;
+  font-size: 11px;            /* ✅ was 10px → readable */
   line-height: 1;
   white-space: nowrap;
+  font-weight: 600;
 }
 
 .bottom-nav-badge {
@@ -640,24 +638,21 @@
     max-width: 400px;
   }
 
-  /* Show bottom nav */
   .bottom-nav {
     display: flex;
   }
 
-  /* Hide Account + Cart from top navbar (they live in bottom nav now) */
   .nav-right .nav-icon-btn {
     display: none;
   }
 
-  /* Add bottom padding to body for bottom nav */
   body {
-    padding-bottom: 72px;
+    padding-bottom: 76px;     /* ✅ matches taller bottom nav */
   }
 }
 
 /* =====================================================================
-   RESPONSIVE — MOBILE (600px)
+   RESPONSIVE — MOBILE (600px) — KEEP ICONS BIG, DON'T SHRINK!
    ===================================================================== */
 @media (max-width: 600px) {
   .navbar-inner {
@@ -722,7 +717,6 @@
     display: none;
   }
 
-  /* Suggestions dropdown spans full width on mobile */
   .search-suggestions {
     left: -4px;
     right: -4px;
@@ -741,21 +735,24 @@
     font-size: 12px;
   }
 
-  .bottom-nav-label {
-    font-size: 9px;
+  /* ✅ BOTTOM NAV — KEEP ICONS & LABELS BIG (don't shrink like before!) */
+  .bottom-nav-item {
+    padding: 10px 4px 8px;
+    min-height: 62px;
   }
 
   .bottom-nav-icon {
-    font-size: 18px;
+    font-size: 22px;          /* ✅ was 18px → now stays big! */
+    width: 26px;
+    height: 26px;
   }
 
-  .bottom-nav-item {
-    padding: 8px 2px 6px;
-    min-height: 58px;
+  .bottom-nav-label {
+    font-size: 11px;          /* ✅ was 9px → now stays readable! */
   }
 
   body {
-    padding-bottom: 68px;
+    padding-bottom: 74px;     /* ✅ matches bottom nav height */
   }
 }
 
@@ -800,21 +797,24 @@
     font-size: 13px;
   }
 
-  .bottom-nav-label {
-    font-size: 8px;
+  /* ✅ Still readable — slightly smaller but NOT tiny */
+  .bottom-nav-item {
+    min-height: 58px;
+    padding: 8px 2px 6px;
   }
 
   .bottom-nav-icon {
-    font-size: 17px;
+    font-size: 20px;          /* ✅ was 17px → now 20px */
+    width: 24px;
+    height: 24px;
   }
 
-  .bottom-nav-item {
-    min-height: 54px;
-    padding: 6px 2px 4px;
+  .bottom-nav-label {
+    font-size: 10px;          /* ✅ was 8px → now 10px */
   }
 
   body {
-    padding-bottom: 64px;
+    padding-bottom: 70px;     /* ✅ was 64px */
   }
 }
 
@@ -835,12 +835,13 @@
     font-size: 10px;
   }
 
-  .bottom-nav-label {
-    font-size: 7px;
+  /* ✅ Even on tiny screens, keep icons usable */
+  .bottom-nav-icon {
+    font-size: 18px;          /* ✅ was 16px → now 18px */
   }
 
-  .bottom-nav-icon {
-    font-size: 16px;
+  .bottom-nav-label {
+    font-size: 9px;           /* ✅ was 7px → now 9px (still readable) */
   }
 }
 
