@@ -186,7 +186,7 @@ const Payment = () => {
 
     try {
       // ✅ Step 1: Create Razorpay order on server — WITH AUTH HEADER
-      const orderRes = await fetch('/create-order', {
+      const orderRes = await apiFetch('/create-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -222,7 +222,14 @@ const Payment = () => {
       }
 
       // ✅ Step 2: Open Razorpay checkout
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_T4HPQRHmf5mAUo';
+      // ✅ FIXED (FE-PAY-001): Removed hardcoded LIVE key fallback.
+      // Now requires VITE_RAZORPAY_KEY_ID env var — no silent live-key fallback.
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        showStatus('Payment gateway not configured. Please contact support.', 'error');
+        setLoading(false);
+        return;
+      }
 
       const options = {
         key: razorpayKey,
@@ -248,7 +255,7 @@ const Payment = () => {
           showStatus('Verifying payment...', 'loading');
 
           try {
-            const verifyRes = await fetch('/verify-payment', {
+            const verifyRes = await apiFetch('/verify-payment', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
