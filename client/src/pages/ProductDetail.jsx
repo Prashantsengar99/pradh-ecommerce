@@ -10,17 +10,19 @@ import {
 import toast from 'react-hot-toast';
 import '/src/styles/product-detail.css';
 
+// ✅ NOTE: FALLBACK_PRODUCTS sirf tab use hoga jab server completely down ho
+// ya product DB me na mile. Normal case me HAMESHA database se aayega.
 const FALLBACK_PRODUCTS = {
   'p1': {
     id: 'p1',
     name: 'PRADH Desi Fuel Premium',
     price: 599,
-    originalPrice: 799,
+    originalPrice: null, // ✅ Removed fake originalPrice (consumer protection)
     description: 'Premium blend with extra nuts & ashwagandha for ultimate energy.',
     image: '/product1.jpeg',
     images: ['/product1.jpeg', '/product11.jpeg'],
     category: 'Premium',
-    stock: 50,
+    stock: 0,
     sku: 'PDF-500G',
     ingredients: 'Roasted Chana, Almonds, Cashews, Ashwagandha, Shatavari',
     benefits: 'Energy Boost, Muscle Recovery, Immunity Support',
@@ -30,12 +32,12 @@ const FALLBACK_PRODUCTS = {
     id: 'p2',
     name: 'PRADH Desi Fuel Classic',
     price: 349,
-    originalPrice: 499,
+    originalPrice: null,
     description: 'Classic Desi blend for daily nutrition & wellness.',
     image: '/product2.jpeg',
     images: ['/product2.jpeg', '/product11.jpeg'],
     category: 'Classic',
-    stock: 35,
+    stock: 0,
     sku: 'PDF-250G',
     ingredients: 'Roasted Chana, Almonds, Cashews, Ashwagandha',
     benefits: 'Daily Energy, Immunity',
@@ -90,43 +92,51 @@ const ProductDetail = () => {
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
 
+  // ✅ FIXED: Public single-product endpoint use karte hain (GET /api/products/:id)
+  // Pehle ye /api/admin/products fetch karke frontend me .find() karta tha —
+  // lekin /api/admin/products pe verifyAdminToken lagta hai, toh customer ke
+  // liye 401 return karta tha aur "Product Not Found" dikhta tha.
+  // Ab server ke public route GET /api/products/:id direct ek product deta hai.
   useEffect(() => {
     const loadProduct = async () => {
       setLoading(true);
       try {
-        const res = await apiFetch('/api/admin/products');
+        const res = await apiFetch(`/api/products/${id}`);
         const data = await res.json();
-        if (data.success && data.products) {
-          const found = data.products.find((p) => (p.id || p._id) === id);
-          if (found) {
-            const mainImage = found.image?.startsWith('http') || found.image?.startsWith('/')
-              ? found.image
-              : `/${found.image || 'product1.jpeg'}`;
 
-            const galleryImages = (found.images && found.images.length > 0)
-              ? found.images.map((img) => img?.startsWith('http') || img?.startsWith('/') ? img : `/${img}`)
-              : [mainImage, '/product11.jpeg', mainImage];
+        if (data.success && data.product) {
+          const found = data.product;
+          const mainImage = found.image?.startsWith('http') || found.image?.startsWith('/')
+            ? found.image
+            : `/${found.image || 'product1.jpeg'}`;
 
-            setProduct({
-              id: found.id || found._id,
-              name: found.name,
-              price: parseFloat(found.price) || 0,
-              originalPrice: parseFloat(found.originalPrice) || null,
-              description: found.description,
-              image: mainImage,
-              images: galleryImages,
-              category: found.category || 'Classic',
-              stock: found.stock ?? 50,
-              sku: found.sku || 'N/A',
-              ingredients: found.ingredients,
-              benefits: found.benefits,
-              usage: found.usage,
-            });
-            return;
-          }
+          const galleryImages = (found.images && found.images.length > 0)
+            ? found.images.map((img) => img?.startsWith('http') || img?.startsWith('/') ? img : `/${img}`)
+            : [mainImage, '/product11.jpeg', mainImage];
+
+          setProduct({
+            id: found.id || found._id,
+            name: found.name,
+            price: parseFloat(found.price) || 0,
+            // ✅ Sirf server-provided originalPrice use karo (fake fabrication nahi)
+            originalPrice: parseFloat(found.originalPrice) || null,
+            description: found.description || 'Premium Desi Fuel blend',
+            image: mainImage,
+            images: galleryImages,
+            category: found.category || 'Classic',
+            // ✅ FIXED: ?? 0 (pehle ?? 50 tha — galat stock dikhta tha)
+            stock: found.stock ?? 0,
+            sku: found.sku || 'N/A',
+            ingredients: found.ingredients,
+            benefits: found.benefits,
+            usage: found.usage,
+          });
+          return;
         }
+        // Product DB me nahi mila — fallback me check karo (sirf demo IDs p1/p2)
         setProduct(FALLBACK_PRODUCTS[id] || null);
-      } catch {
+      } catch (err) {
+        console.warn('⚠️ Product fetch failed for id:', id, err?.message);
         setProduct(FALLBACK_PRODUCTS[id] || null);
       } finally {
         setLoading(false);
@@ -167,26 +177,35 @@ const ProductDetail = () => {
 
   useEffect(() => { fetchReviews(); }, [id]);
 
+  // ✅ FIXED: Related products bhi public /api/products se laaye hain
+  // (pehle /api/admin/products use ho raha tha jo admin-only hai)
   useEffect(() => {
     if (!product) return;
     const loadRelated = async () => {
       try {
-        const res = await apiFetch('/api/admin/products');
+        const res = await apiFetch('/api/products');
         const data = await res.json();
         if (data.success && data.products) {
           const related = data.products
             .filter((p) => (p.id || p._id) !== product.id)
             .slice(0, 4)
-            .map((p) => ({
-              id: p.id || p._id,
-              name: p.name,
-              price: parseFloat(p.price),
-              image: p.image?.startsWith('http') || p.image?.startsWith('/') ? p.image : `/${p.image || 'product1.jpeg'}`,
-            }));
+            .map((p) => {
+              const img = p.image?.startsWith('http') || p.image?.startsWith('/')
+                ? p.image
+                : `/${p.image || 'product1.jpeg'}`;
+              return {
+                id: p.id || p._id,
+                name: p.name,
+                price: parseFloat(p.price) || 0,
+                image: img,
+              };
+            });
           setRelatedProducts(related);
           return;
         }
-      } catch {}
+      } catch (err) {
+        console.warn('⚠️ Related products fetch failed:', err?.message);
+      }
       setRelatedProducts([]);
     };
     loadRelated();
@@ -267,7 +286,12 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (!product || product.stock <= 0) return;
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    let cart = [];
+    try {
+      cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    } catch {
+      cart = [];
+    }
     const existing = cart.find((item) => item.id === product.id);
     if (existing) {
       existing.quantity += quantity;
@@ -479,7 +503,7 @@ const ProductDetail = () => {
 
           <div className="p-price-box">
             <span className="p-price">₹{product.price}</span>
-            {product.originalPrice && (
+            {product.originalPrice && product.originalPrice > product.price && (
               <>
                 <span className="p-original-price">₹{product.originalPrice}</span>
                 <span className="p-discount-tag">{discount}% OFF</span>
