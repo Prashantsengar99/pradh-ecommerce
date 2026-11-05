@@ -50,6 +50,17 @@ const FAQS = [
   { q: 'What makes PRADH different?', a: 'Traditional sand-roasting, zero refined sugar, no whey concentrates, and 100% honest ingredient disclosure. We do not cut corners on quality.' },
 ];
 
+// ✅ Default announcement settings (fallback if API fails)
+const DEFAULT_ANNOUNCEMENT = {
+  announcementEnabled: true,
+  announcementText: 'Use code PRADH20 for 20% OFF on your first order — Limited time only',
+  announcementCoupon: 'PRADH20',
+  announcementDiscount: 20,
+  ctaEnabled: true,
+  ctaTitle: 'Ready to Fuel Your Desi Strength?',
+  ctaDesc: 'Use this coupon code and get flat 20% off on your first order.',
+};
+
 const Home = () => {
   const [products, setProducts] = useState([]);
   const [productCount, setProductCount] = useState('0+');
@@ -61,9 +72,28 @@ const Home = () => {
   const heroRef = useRef(null);
   const productStageRef = useRef(null);
 
+  // ✅ Announcement + CTA settings from admin panel
+  const [announcement, setAnnouncement] = useState(DEFAULT_ANNOUNCEMENT);
+
   const TEXTS = ['Pure Desi Fuel', 'No Preservatives', '100% Natural Energy', 'Traditional Nutrition'];
 
-  // Load featured products — uses PUBLIC /api/products endpoint (admin route is now protected)
+  // ✅ Fetch announcement settings from backend (admin-controlled)
+  useEffect(() => {
+    const loadAnnouncement = async () => {
+      try {
+        const res = await apiFetch('/api/announcement-settings');
+        const data = await res.json();
+        if (data.success) {
+          setAnnouncement(data);
+        }
+      } catch (err) {
+        console.warn('Announcement settings fetch failed, using defaults:', err);
+      }
+    };
+    loadAnnouncement();
+  }, []);
+
+  // Load featured products
   useEffect(() => {
     const loadFeaturedProducts = async () => {
       try {
@@ -71,7 +101,6 @@ const Home = () => {
         const data = await res.json();
 
         if (data.success && data.products?.length > 0) {
-          // Server already filters to status:'active' on /api/products, but double-check stock
           const active = data.products.filter((p) => p.status === 'active' && (p.stock ?? 0) > 0);
           const featured = active.slice(0, 8);
 
@@ -156,7 +185,7 @@ const Home = () => {
     return () => observer.disconnect();
   }, [products]);
 
-  // Mouse-follow parallax on hero product (desktop only, respects reduced motion)
+  // Mouse-follow parallax
   useEffect(() => {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const isDesktop = window.matchMedia('(min-width: 1025px)').matches;
@@ -175,7 +204,6 @@ const Home = () => {
     return () => window.removeEventListener('mousemove', handleMove);
   }, []);
 
-  // Add to cart — wrapped in try/catch for malformed localStorage
   const handleAddToCart = (product) => {
     let cart = [];
     try {
@@ -201,7 +229,6 @@ const Home = () => {
     toast.success(`${product.name} added to cart! 🛒`);
   };
 
-  // Newsletter submit
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
     if (!email) {
@@ -214,12 +241,14 @@ const Home = () => {
 
   return (
     <main className="pf-home">
-      {/* ANNOUNCEMENT BAR */}
-      <div className="pf-announcement">
-        <span className="pf-announcement-text">
-          Use code <span className="pf-coupon">PRADH20</span> for 20% OFF on your first order — Limited time only
-        </span>
-      </div>
+      {/* ✅ ANNOUNCEMENT BAR — admin controlled (on/off + text) */}
+      {announcement.announcementEnabled && (
+        <div className="pf-announcement">
+          <span className="pf-announcement-text">
+            {announcement.announcementText}
+          </span>
+        </div>
+      )}
 
       {/* HERO */}
       <section className="pf-hero" ref={heroRef}>
@@ -234,7 +263,6 @@ const Home = () => {
         </div>
 
         <div className="pf-hero-inner">
-          {/* LEFT — Editorial copy */}
           <div className="pf-hero-copy">
             <div className="pf-hero-eyebrow animate-on-scroll">
               <span className="pf-eyebrow-dot" />
@@ -285,7 +313,6 @@ const Home = () => {
             </div>
           </div>
 
-          {/* RIGHT — Product showcase */}
           <div className="pf-hero-stage animate-on-scroll" ref={productStageRef}>
             <div
               className="pf-product-float"
@@ -303,7 +330,6 @@ const Home = () => {
                 onError={(e) => { e.target.src = '/product2.jpeg'; }}
               />
 
-              {/* Decorative ingredient accents */}
               <span className="pf-ingredient-accent pf-ingredient-accent--1" aria-hidden="true">🌾</span>
               <span className="pf-ingredient-accent pf-ingredient-accent--2" aria-hidden="true">🥜</span>
               <span className="pf-ingredient-accent pf-ingredient-accent--3" aria-hidden="true">🌿</span>
@@ -514,7 +540,7 @@ const Home = () => {
                   <span key={s}>★</span>
                 ))}
               </div>
-              <p className="pf-review-text">“{t.text}”</p>
+              <p className="pf-review-text">"{t.text}"</p>
               <div className="pf-review-author">
                 <span className="pf-review-avatar" aria-hidden="true">{t.author.charAt(0)}</span>
                 <span className="pf-review-name">{t.author}</span>
@@ -524,30 +550,32 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA BANNER */}
-      <section className="pf-section pf-cta-section">
-        <div className="pf-cta-banner animate-on-scroll">
-          <div className="pf-cta-inner">
-            <span className="pf-kicker pf-kicker--light">First Order Offer</span>
-            <h2 className="pf-cta-title">
-              Ready to <span className="pf-cta-accent">Fuel Your Desi Strength</span>?
-            </h2>
-            <p className="pf-cta-desc">
-              Use this coupon code and get flat 20% off on your first order.
-            </p>
-            <div className="pf-cta-coupon" aria-label="Coupon code PRADH20">
-              <span className="pf-cta-coupon-label">CODE</span>
-              <span className="pf-cta-coupon-value">PRADH20</span>
+      {/* ✅ CTA BANNER — admin controlled (on/off + title + desc + coupon) */}
+      {announcement.ctaEnabled && (
+        <section className="pf-section pf-cta-section">
+          <div className="pf-cta-banner animate-on-scroll">
+            <div className="pf-cta-inner">
+              <span className="pf-kicker pf-kicker--light">First Order Offer</span>
+              <h2 className="pf-cta-title">
+                {announcement.ctaTitle}
+              </h2>
+              <p className="pf-cta-desc">
+                {announcement.ctaDesc}
+              </p>
+              <div className="pf-cta-coupon" aria-label={`Coupon code ${announcement.announcementCoupon}`}>
+                <span className="pf-cta-coupon-label">CODE</span>
+                <span className="pf-cta-coupon-value">{announcement.announcementCoupon}</span>
+              </div>
+              <Link to="/products" className="pf-btn pf-btn--gold">
+                <span>Shop Now</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
             </div>
-            <Link to="/products" className="pf-btn pf-btn--gold">
-              <span>Shop Now</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* FAQ */}
       <section className="pf-section pf-faq">

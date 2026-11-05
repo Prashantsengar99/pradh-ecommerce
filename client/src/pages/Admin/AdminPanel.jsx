@@ -11,6 +11,7 @@ import {
   FaTruck, FaReceipt, FaRupeeSign, FaBars,
   FaArrowUp, FaArrowDown, FaClock, FaExclamationTriangle, FaBell,
   FaChartLine, FaShoppingCart, FaBoxOpen, FaUndoAlt, FaCheck, FaBan, FaWhatsapp,
+  FaGift,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import '../../styles/admin.css';
@@ -38,6 +39,27 @@ const AdminPanel = () => {
   });
   const [couponForm, setCouponForm] = useState({ code: '', discount: '', expiry: '' });
 
+  // ✅ Wheel Settings State
+  const [wheelSettings, setWheelSettings] = useState({
+    couponCode: 'PRADH20',
+    discountPercent: 20,
+    label: '20% OFF',
+    enabled: true,
+  });
+  const [wheelSaving, setWheelSaving] = useState(false);
+
+  // ✅ Announcement + CTA Settings State
+  const [announcementSettings, setAnnouncementSettings] = useState({
+    announcementEnabled: true,
+    announcementText: 'Use code PRADH20 for 20% OFF on your first order — Limited time only',
+    announcementCoupon: 'PRADH20',
+    announcementDiscount: 20,
+    ctaEnabled: true,
+    ctaTitle: 'Ready to Fuel Your Desi Strength?',
+    ctaDesc: 'Use this coupon code and get flat 20% off on your first order.',
+  });
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
+
   useEffect(() => {
     if (!localStorage.getItem('adminLoggedIn')) {
       navigate('/admin');
@@ -51,6 +73,8 @@ const AdminPanel = () => {
     loadReturns();
     loadCustomers();
     loadDeliverySettings();
+    loadWheelSettings();
+    loadAnnouncementSettings();
   }, [navigate]);
 
   const loadDashboard = async () => {
@@ -157,7 +181,103 @@ const AdminPanel = () => {
     if (key === 'reviews') loadReviews();
     if (key === 'customers') loadCustomers();
     if (key === 'returns') loadReturns();
+    if (key === 'wheel') loadWheelSettings();
+    if (key === 'announcement') loadAnnouncementSettings();
     if (key === 'dashboard') loadDashboard();
+  };
+
+  // ✅ WHEEL SETTINGS — Load from server
+  const loadWheelSettings = async () => {
+    try {
+      const res = await apiFetch('/api/wheel-settings');
+      const data = await res.json();
+      if (data.success) {
+        setWheelSettings({
+          couponCode: data.couponCode || 'PRADH20',
+          discountPercent: data.discountPercent || 20,
+          label: data.label || '20% OFF',
+          enabled: data.enabled !== false,
+        });
+      }
+    } catch (err) { console.error('Wheel settings load failed:', err); }
+  };
+
+  // ✅ WHEEL SETTINGS — Save to server
+  const saveWheelSettings = async () => {
+    if (!wheelSettings.couponCode.trim()) {
+      toast.error('Coupon code is required');
+      return;
+    }
+    if (!wheelSettings.discountPercent || wheelSettings.discountPercent < 1 || wheelSettings.discountPercent > 90) {
+      toast.error('Discount must be between 1 and 90');
+      return;
+    }
+    setWheelSaving(true);
+    try {
+      const res = await apiFetch('/api/wheel-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          couponCode: wheelSettings.couponCode.toUpperCase().trim(),
+          discountPercent: parseInt(wheelSettings.discountPercent),
+          label: wheelSettings.label.trim() || `${wheelSettings.discountPercent}% OFF`,
+          enabled: wheelSettings.enabled,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Wheel settings updated! 🎉');
+        loadWheelSettings();
+      } else {
+        toast.error(data.error || 'Update failed');
+      }
+    } catch (err) {
+      toast.error('Error updating wheel settings');
+    } finally {
+      setWheelSaving(false);
+    }
+  };
+
+  // ✅ ANNOUNCEMENT SETTINGS — Load
+  const loadAnnouncementSettings = async () => {
+    try {
+      const res = await apiFetch('/api/announcement-settings');
+      const data = await res.json();
+      if (data.success) {
+        setAnnouncementSettings({
+          announcementEnabled: data.announcementEnabled !== false,
+          announcementText: data.announcementText || '',
+          announcementCoupon: data.announcementCoupon || 'PRADH20',
+          announcementDiscount: data.announcementDiscount || 20,
+          ctaEnabled: data.ctaEnabled !== false,
+          ctaTitle: data.ctaTitle || '',
+          ctaDesc: data.ctaDesc || '',
+        });
+      }
+    } catch (err) { console.error('Announcement settings load failed:', err); }
+  };
+
+  // ✅ ANNOUNCEMENT SETTINGS — Save
+  const saveAnnouncementSettings = async () => {
+    setAnnouncementSaving(true);
+    try {
+      const res = await apiFetch('/api/announcement-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(announcementSettings),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Announcement settings updated! 🎉');
+        loadAnnouncementSettings();
+      } else {
+        toast.error(data.error || 'Update failed');
+      }
+    } catch (err) {
+      toast.error('Error updating announcement settings');
+    } finally {
+      setAnnouncementSaving(false);
+    }
   };
 
   const handleLogout = () => {
@@ -555,6 +675,8 @@ const AdminPanel = () => {
     { key: 'reviews', icon: <FaStar />, label: 'Reviews', badge: pendingReviews },
     { key: 'returns', icon: <FaUndoAlt />, label: 'Returns', badge: returnRequests.filter(r => r.status === 'pending').length },
     { key: 'customers', icon: <FaUsers />, label: 'Customers', badge: customers.length },
+    { key: 'wheel', icon: <FaGift />, label: 'Spin Wheel' },
+    { key: 'announcement', icon: <FaBell />, label: 'Announcement' },
   ];
 
   return (
@@ -584,7 +706,7 @@ const AdminPanel = () => {
             <button
               className="nav-item"
               onClick={handleLogout}
-              style={{ marginTop: '20px', borderTop: '1px solid #334155', paddingTop: '16px', color: '#ef4444' }}
+              style={{ marginTop: '20px', borderTop: '1px solid var(--pf-border, rgba(57, 37, 27, 0.10))', paddingTop: '16px', color: '#ef4444' }}
             >
               <FaSignOutAlt /> Logout
             </button>
@@ -603,8 +725,8 @@ const AdminPanel = () => {
               {/* HEADER */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                  <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>📊 Dashboard</h1>
-                  <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '4px' }}>Welcome back! Here's your business overview</p>
+                  <h1 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--pf-chocolate, #39251B)', letterSpacing: '-0.5px' }}>📊 Dashboard</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px', marginTop: '4px' }}>Welcome back! Here's your business overview</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   {pendingOrders > 0 && (
@@ -676,11 +798,11 @@ const AdminPanel = () => {
                             <stop offset="95%" stopColor="#facc15" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                        <XAxis dataKey={chartPeriod === 'weekly' ? 'day' : chartPeriod === 'monthly' ? 'month' : 'day'} stroke="#64748b" fontSize={12} />
-                        <YAxis stroke="#64748b" fontSize={12} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(57, 37, 27, 0.08)" />
+                        <XAxis dataKey={chartPeriod === 'weekly' ? 'day' : chartPeriod === 'monthly' ? 'month' : 'day'} stroke="#8A7560" fontSize={12} />
+                        <YAxis stroke="#8A7560" fontSize={12} />
                         <Tooltip
-                          contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: '#fff' }}
+                          contentStyle={{ background: '#1e293b', border: '1px solid var(--pf-border-strong, rgba(57, 37, 27, 0.18))', borderRadius: '10px', color: '#fff' }}
                           formatter={(value) => [`₹${value.toFixed(0)}`, 'Sales']}
                         />
                         <Area type="monotone" dataKey="sales" stroke="#facc15" strokeWidth={2.5} fillOpacity={1} fill="url(#salesGradient)" />
@@ -702,8 +824,8 @@ const AdminPanel = () => {
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: '#fff' }} />
-                          <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
+                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid var(--pf-border-strong, rgba(57, 37, 27, 0.18))', borderRadius: '10px', color: '#fff' }} />
+                          <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '12px', color: 'var(--pf-text-muted, #8A7560)' }} />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
@@ -794,32 +916,32 @@ const AdminPanel = () => {
 
               {/* DELIVERY SETTINGS */}
               <div className="stat-card" style={{ borderColor: '#22c55e', marginTop: '20px' }}>
-                <h3 style={{ color: '#22c55e', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ color: '#15823f', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FaTruck /> Delivery Settings
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'end' }}>
                   <div>
-                    <label style={{ color: '#94a3b8', fontSize: '13px', display: 'block', marginBottom: '5px' }}>Delivery Charge (₹)</label>
+                    <label style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px', display: 'block', marginBottom: '5px' }}>Delivery Charge (₹)</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '24px', fontWeight: '700', color: '#facc15' }}>₹</span>
-                      <input type="number" value={deliveryCharge} onChange={(e) => setDeliveryCharge(parseFloat(e.target.value) || 0)} style={{ background: '#0f172a', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '10px', padding: '10px 14px', fontSize: '18px', width: '140px', fontWeight: '600' }} step="0.5" min="0" />
+                      <span style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-gold-deep, #A67C2E)' }}>₹</span>
+                      <input type="number" value={deliveryCharge} onChange={(e) => setDeliveryCharge(parseFloat(e.target.value) || 0)} style={{ background: 'var(--pf-cream, #F8F5EF)', color: 'var(--pf-chocolate, #39251B)', border: '1px solid var(--pf-border-strong, rgba(57, 37, 27, 0.18))', borderRadius: '10px', padding: '10px 14px', fontSize: '18px', width: '140px', fontWeight: '600' }} step="0.5" min="0" />
                       <button onClick={updateDeliveryCharge} className="btn-primary" style={{ padding: '10px 20px' }}><FaSave /> Update</button>
                     </div>
-                    <small style={{ color: '#64748b', display: 'block', marginTop: '5px' }}>Set 0 for FREE delivery</small>
+                    <small style={{ color: 'var(--pf-text-muted, #8A7560)', display: 'block', marginTop: '5px' }}>Set 0 for FREE delivery</small>
                   </div>
                   <div>
-                    <label style={{ color: '#94a3b8', fontSize: '13px', display: 'block', marginBottom: '5px' }}>Free Delivery Threshold (₹)</label>
+                    <label style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px', display: 'block', marginBottom: '5px' }}>Free Delivery Threshold (₹)</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '24px', fontWeight: '700', color: '#facc15' }}>₹</span>
-                      <input type="number" value={freeThreshold} onChange={(e) => setFreeThreshold(parseFloat(e.target.value) || 0)} style={{ background: '#0f172a', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '10px', padding: '10px 14px', fontSize: '18px', width: '140px', fontWeight: '600' }} step="100" min="0" />
+                      <span style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-gold-deep, #A67C2E)' }}>₹</span>
+                      <input type="number" value={freeThreshold} onChange={(e) => setFreeThreshold(parseFloat(e.target.value) || 0)} style={{ background: 'var(--pf-cream, #F8F5EF)', color: 'var(--pf-chocolate, #39251B)', border: '1px solid var(--pf-border-strong, rgba(57, 37, 27, 0.18))', borderRadius: '10px', padding: '10px 14px', fontSize: '18px', width: '140px', fontWeight: '600' }} step="100" min="0" />
                       <button onClick={updateFreeThreshold} className="btn-info" style={{ padding: '10px 20px', background: '#8b5cf6' }}><FaSave /> Set</button>
                     </div>
-                    <small style={{ color: '#64748b', display: 'block', marginTop: '5px' }}>Orders above this get FREE delivery</small>
+                    <small style={{ color: 'var(--pf-text-muted, #8A7560)', display: 'block', marginTop: '5px' }}>Orders above this get FREE delivery</small>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '20px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #334155', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '20px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--pf-border, rgba(57, 37, 27, 0.10))', flexWrap: 'wrap' }}>
                   <div>
-                    <span style={{ color: '#94a3b8', fontSize: '12px' }}>Current Status</span>
+                    <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px' }}>Current Status</span>
                     <div style={{ fontSize: '16px', fontWeight: '600', marginTop: '3px' }}>
                       {deliveryCharge === 0 ? (
                         <span className="status-badge" style={{ background: '#22c55e', color: '#0f172a' }}>🎉 FREE Delivery</span>
@@ -829,12 +951,12 @@ const AdminPanel = () => {
                     </div>
                   </div>
                   <div>
-                    <span style={{ color: '#94a3b8', fontSize: '12px' }}>Free Delivery Above</span>
-                    <div style={{ fontSize: '16px', fontWeight: '600', marginTop: '3px', color: '#22c55e' }}>₹{freeThreshold.toFixed(0)}</div>
+                    <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px' }}>Free Delivery Above</span>
+                    <div style={{ fontSize: '16px', fontWeight: '600', marginTop: '3px', color: '#15823f' }}>₹{freeThreshold.toFixed(0)}</div>
                   </div>
                   <div>
-                    <span style={{ color: '#94a3b8', fontSize: '12px' }}>Last Updated</span>
-                    <div style={{ fontSize: '13px', marginTop: '3px', color: '#94a3b8' }}>{lastUpdated}</div>
+                    <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px' }}>Last Updated</span>
+                    <div style={{ fontSize: '13px', marginTop: '3px', color: 'var(--pf-text-muted, #8A7560)' }}>{lastUpdated}</div>
                   </div>
                 </div>
               </div>
@@ -846,8 +968,8 @@ const AdminPanel = () => {
             <div className="page-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>📦 Product Management</h1>
-                  <p style={{ color: '#94a3b8' }}>Add, edit, and manage your products</p>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>📦 Product Management</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Add, edit, and manage your products</p>
                 </div>
                 <button className="btn-primary" onClick={openAddProduct}><FaPlus /> Add New Product</button>
               </div>
@@ -868,14 +990,14 @@ const AdminPanel = () => {
                     {products.map((p) => (
                       <tr key={p.id}>
                         <td><img src={p.image || '/product.jpeg'} className="product-img-thumb" onError={(e) => (e.target.src = '/product1.jpeg')} alt={p.name} /></td>
-                        <td><strong>{p.name}</strong><br /><small style={{ color: '#64748b' }}>{p.sku || 'No SKU'}</small></td>
-                        <td style={{ color: '#facc15' }}>₹{parseFloat(p.price).toFixed(2)}</td>
+                        <td><strong>{p.name}</strong><br /><small style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{p.sku || 'No SKU'}</small></td>
+                        <td style={{ color: 'var(--pf-gold-deep, #A67C2E)' }}>₹{parseFloat(p.price).toFixed(2)}</td>
                         <td>
                           <span className={`status-badge ${p.stock > 20 ? 'status-active' : p.stock > 0 ? 'status-low-stock' : 'status-inactive'}`}>
                             {p.stock > 20 ? 'In Stock' : p.stock > 0 ? 'Low Stock' : 'Out of Stock'}
                           </span>
                         </td>
-                        <td style={{ color: '#94a3b8' }}>{p.category || 'General'}</td>
+                        <td style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{p.category || 'General'}</td>
                         <td><span className={`status-badge ${p.status === 'active' ? 'status-active' : 'status-inactive'}`}>{p.status || 'active'}</span></td>
                         <td>
                           <button className="btn-warning" onClick={() => openEditProduct(p)} style={{ padding: '4px 12px', fontSize: '12px', marginRight: '5px' }}><FaEdit /></button>
@@ -884,7 +1006,7 @@ const AdminPanel = () => {
                       </tr>
                     ))}
                     {products.length === 0 && (
-                      <tr><td colSpan="7" style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No products added yet.</td></tr>
+                      <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--pf-text-muted, #8A7560)', padding: '40px' }}>No products added yet.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -897,8 +1019,8 @@ const AdminPanel = () => {
             <div className="page-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>🚚 Orders</h1>
-                  <p style={{ color: '#94a3b8' }}>View and manage customer orders</p>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>🚚 Orders</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>View and manage customer orders</p>
                 </div>
                 <button className="btn-primary" onClick={loadOrders}><FaSync /> Refresh</button>
               </div>
@@ -919,13 +1041,13 @@ const AdminPanel = () => {
                   <tbody>
                     {orders.map((o) => (
                       <tr key={o.id || o.order_id}>
-                        <td><span style={{ color: '#facc15', fontFamily: 'monospace', fontSize: '13px' }}>{o.id || o.order_id}</span></td>
+                        <td><span style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontFamily: 'monospace', fontSize: '13px' }}>{o.id || o.order_id}</span></td>
                         <td><strong>{o.customer?.name || 'Guest'}</strong></td>
-                        <td style={{ color: '#94a3b8' }}>{o.customer?.phone || 'N/A'}</td>
-                        <td style={{ color: '#94a3b8', fontSize: '13px' }}>{o.items ? o.items.length : 0} items</td>
-                        <td style={{ color: '#facc15', fontWeight: '600' }}>₹{(o.total || 0).toFixed(2)}</td>
+                        <td style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{o.customer?.phone || 'N/A'}</td>
+                        <td style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px' }}>{o.items ? o.items.length : 0} items</td>
+                        <td style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontWeight: '600' }}>₹{(o.total || 0).toFixed(2)}</td>
                         <td>
-                          <select value={o.status || 'pending'} onChange={(e) => updateOrderStatus(o.id || o.order_id, e.target.value)} style={{ background: '#0f172a', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '6px', padding: '4px 8px' }}>
+                          <select value={o.status || 'pending'} onChange={(e) => updateOrderStatus(o.id || o.order_id, e.target.value)} style={{ background: 'var(--pf-cream, #F8F5EF)', color: 'var(--pf-chocolate, #39251B)', border: '1px solid var(--pf-border-strong, rgba(57, 37, 27, 0.18))', borderRadius: '6px', padding: '4px 8px' }}>
                             <option value="pending">Pending</option>
                             <option value="paid">Paid</option>
                             <option value="shipped">Shipped</option>
@@ -933,7 +1055,7 @@ const AdminPanel = () => {
                             <option value="cancelled">Cancelled</option>
                           </select>
                         </td>
-                        <td style={{ color: '#94a3b8', fontSize: '13px' }}>{o.date ? new Date(o.date).toLocaleDateString() : 'N/A'}</td>
+                        <td style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px' }}>{o.date ? new Date(o.date).toLocaleDateString() : 'N/A'}</td>
                         <td>
                           <button className="btn-info" onClick={() => setSelectedOrder(o)} style={{ padding: '4px 12px', fontSize: '12px' }}>
                             <FaEye /> View
@@ -942,7 +1064,7 @@ const AdminPanel = () => {
                       </tr>
                     ))}
                     {orders.length === 0 && (
-                      <tr><td colSpan="8" style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No orders found</td></tr>
+                      <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--pf-text-muted, #8A7560)', padding: '40px' }}>No orders found</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -955,8 +1077,8 @@ const AdminPanel = () => {
             <div className="page-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>🎟️ Coupons</h1>
-                  <p style={{ color: '#94a3b8' }}>Manage discount coupons</p>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>🎟️ Coupons</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Manage discount coupons</p>
                 </div>
                 <button className="btn-primary" onClick={() => setCouponModal(true)}><FaPlus /> Create Coupon</button>
               </div>
@@ -976,16 +1098,16 @@ const AdminPanel = () => {
                       const isExpired = c.expiry ? new Date(c.expiry) < new Date() : false;
                       return (
                         <tr key={c.code}>
-                          <td><span style={{ color: '#facc15', fontWeight: '700' }}>{c.code}</span></td>
-                          <td style={{ color: '#22c55e', fontWeight: '600' }}>{c.discount}%</td>
-                          <td style={{ color: '#94a3b8' }}>{c.expiry || 'No expiry'}</td>
+                          <td><span style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontWeight: '700' }}>{c.code}</span></td>
+                          <td style={{ color: '#15823f', fontWeight: '600' }}>{c.discount}%</td>
+                          <td style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{c.expiry || 'No expiry'}</td>
                           <td><span className={`status-badge ${isExpired ? 'status-inactive' : 'status-active'}`}>{isExpired ? 'Expired' : 'Active'}</span></td>
                           <td><button className="btn-danger" onClick={() => deleteCoupon(c.code)} style={{ padding: '4px 12px' }}><FaTrash /></button></td>
                         </tr>
                       );
                     })}
                     {coupons.length === 0 && (
-                      <tr><td colSpan="5" style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No coupons</td></tr>
+                      <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--pf-text-muted, #8A7560)', padding: '40px' }}>No coupons</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -998,8 +1120,8 @@ const AdminPanel = () => {
             <div className="page-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>⭐ Reviews</h1>
-                  <p style={{ color: '#94a3b8' }}>Manage customer reviews</p>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>⭐ Reviews</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Manage customer reviews</p>
                 </div>
                 <button className="btn-primary" onClick={loadReviews}><FaSync /> Refresh</button>
               </div>
@@ -1018,10 +1140,10 @@ const AdminPanel = () => {
                   <tbody>
                     {reviews.map((r) => (
                       <tr key={r.id}>
-                        <td style={{ color: '#94a3b8' }}>{r.productName || 'Product'}</td>
+                        <td style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{r.productName || 'Product'}</td>
                         <td>{r.userName || 'Anonymous'}</td>
-                        <td style={{ color: '#facc15' }}>{'★'.repeat(r.rating)}</td>
-                        <td style={{ color: '#94a3b8', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.comment}</td>
+                        <td style={{ color: 'var(--pf-gold-deep, #A67C2E)' }}>{'★'.repeat(r.rating)}</td>
+                        <td style={{ color: 'var(--pf-text-muted, #8A7560)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.comment}</td>
                         <td><span className={`status-badge status-${r.status}`}>{r.status}</span></td>
                         <td>
                           {r.status === 'pending' ? (
@@ -1036,7 +1158,7 @@ const AdminPanel = () => {
                       </tr>
                     ))}
                     {reviews.length === 0 && (
-                      <tr><td colSpan="6" style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No reviews</td></tr>
+                      <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--pf-text-muted, #8A7560)', padding: '40px' }}>No reviews</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1049,8 +1171,8 @@ const AdminPanel = () => {
             <div className="page-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>↩️ Return / Replace Requests</h1>
-                  <p style={{ color: '#94a3b8' }}>Manage customer return, replace & refund requests</p>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>↩️ Return / Replace Requests</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Manage customer return, replace & refund requests</p>
                 </div>
                 <button className="btn-primary" onClick={loadReturns}><FaSync /> Refresh</button>
               </div>
@@ -1087,28 +1209,28 @@ const AdminPanel = () => {
                       return (
                         <tr key={r.id}>
                           <td>
-                            <span style={{ color: '#facc15', fontFamily: 'monospace', fontSize: '12px', fontWeight: '700' }}>{r.id}</span>
+                            <span style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontFamily: 'monospace', fontSize: '12px', fontWeight: '700' }}>{r.id}</span>
                           </td>
                           <td>
                             <strong>{r.name}</strong><br />
-                            <small style={{ color: '#64748b' }}>{r.phone}</small>
+                            <small style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{r.phone}</small>
                           </td>
                           <td>
-                            <span style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: '12px' }}>{r.orderId}</span>
-                            {r.productName && <><br /><small style={{ color: '#64748b' }}>{r.productName}</small></>}
+                            <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontFamily: 'monospace', fontSize: '12px' }}>{r.orderId}</span>
+                            {r.productName && <><br /><small style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{r.productName}</small></>}
                           </td>
                           <td>
                             <span className="status-badge" style={{ background: `${typeColor}20`, color: typeColor, border: `1px solid ${typeColor}50` }}>
                               {typeLabel}
                             </span>
                           </td>
-                          <td style={{ color: '#94a3b8', fontSize: '13px' }}>{reasonLabel}</td>
+                          <td style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px' }}>{reasonLabel}</td>
                           <td>
                             <span className={`status-badge ${statusClass}`}>
                               {r.status}
                             </span>
                           </td>
-                          <td style={{ color: '#94a3b8', fontSize: '12px' }}>
+                          <td style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px' }}>
                             {new Date(r.createdAt).toLocaleDateString('en-IN')}
                           </td>
                           <td>
@@ -1168,7 +1290,7 @@ const AdminPanel = () => {
                     })}
                     {returnRequests.length === 0 && (
                       <tr>
-                        <td colSpan="8" style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>
+                        <td colSpan="8" style={{ textAlign: 'center', color: 'var(--pf-text-muted, #8A7560)', padding: '40px' }}>
                           No return requests yet
                         </td>
                       </tr>
@@ -1184,8 +1306,8 @@ const AdminPanel = () => {
             <div className="page-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>👥 Customers</h1>
-                  <p style={{ color: '#94a3b8' }}>Manage your customer base</p>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>👥 Customers</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Manage your customer base</p>
                 </div>
                 <button className="btn-primary" onClick={loadCustomers}><FaSync /> Refresh</button>
               </div>
@@ -1208,19 +1330,256 @@ const AdminPanel = () => {
                       return (
                         <tr key={c.phone}>
                           <td><strong>{c.name}</strong></td>
-                          <td style={{ color: '#94a3b8' }}>{c.email}</td>
-                          <td style={{ color: '#94a3b8' }}>{c.phone}</td>
-                          <td style={{ color: '#facc15' }}>{c.orders}</td>
-                          <td style={{ color: '#facc15', fontWeight: '600' }}>₹{c.totalSpent.toFixed(2)}</td>
+                          <td style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{c.email}</td>
+                          <td style={{ color: 'var(--pf-text-muted, #8A7560)' }}>{c.phone}</td>
+                          <td style={{ color: 'var(--pf-gold-deep, #A67C2E)' }}>{c.orders}</td>
+                          <td style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontWeight: '600' }}>₹{c.totalSpent.toFixed(2)}</td>
                           <td><span className={`status-badge ${statusClass}`}>{status}</span></td>
                         </tr>
                       );
                     })}
                     {customers.length === 0 && (
-                      <tr><td colSpan="6" style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No customers</td></tr>
+                      <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--pf-text-muted, #8A7560)', padding: '40px' }}>No customers</td></tr>
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* ===== SPIN WHEEL SETTINGS ===== */}
+          {section === 'wheel' && (
+            <div className="page-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>🎁 Spin Wheel Settings</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Configure the discount customers win on the wheel</p>
+                </div>
+                <button className="btn-primary" onClick={loadWheelSettings}><FaSync /> Refresh</button>
+              </div>
+
+              <div className="chart-card" style={{ maxWidth: '600px', margin: '0 auto' }}>
+                <div className="chart-header">
+                  <div className="chart-title"><FaGift className="chart-title-icon" /> Wheel Configuration</div>
+                </div>
+
+                <div style={{ padding: '0 8px' }}>
+                  {/* Enable/Disable Toggle */}
+                  <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--pf-cream, #F8F5EF)', borderRadius: '12px', border: '1px solid var(--pf-border, rgba(57, 37, 27, 0.10))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: '700', color: 'var(--pf-chocolate, #39251B)', fontSize: '15px' }}>Wheel Status</div>
+                      <div style={{ fontSize: '13px', color: 'var(--pf-text-muted, #8A7560)', marginTop: '4px' }}>
+                        {wheelSettings.enabled ? '✅ Wheel is ACTIVE — visitors will see it' : '⛔ Wheel is DISABLED — visitors won\'t see it'}
+                      </div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '56px', height: '30px', cursor: 'pointer', flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={wheelSettings.enabled}
+                        onChange={(e) => setWheelSettings({ ...wheelSettings, enabled: e.target.checked })}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span style={{
+                        position: 'absolute', inset: 0,
+                        background: wheelSettings.enabled ? 'linear-gradient(135deg, #C49A45, #A67C2E)' : '#ccc',
+                        borderRadius: '30px',
+                        transition: '0.3s',
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          top: '3px',
+                          left: wheelSettings.enabled ? '29px' : '3px',
+                          width: '24px', height: '24px',
+                          background: '#fff',
+                          borderRadius: '50%',
+                          transition: '0.3s',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                        }} />
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Coupon Code */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Coupon Code *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={wheelSettings.couponCode}
+                      onChange={(e) => setWheelSettings({ ...wheelSettings, couponCode: e.target.value.toUpperCase() })}
+                      placeholder="PRADH20"
+                      style={{ letterSpacing: '2px', fontWeight: 700 }}
+                    />
+                    <small style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                      This coupon must exist in the Coupons section. User will get this code after spinning.
+                    </small>
+                  </div>
+
+                  {/* Discount Percent */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Discount Percentage *</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={wheelSettings.discountPercent}
+                      onChange={(e) => setWheelSettings({ ...wheelSettings, discountPercent: e.target.value })}
+                      min="1"
+                      max="90"
+                      placeholder="20"
+                    />
+                    <small style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                      This percentage will be shown on the wheel and result screen (1-90).
+                    </small>
+                  </div>
+
+                  {/* Label */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label className="form-label">Wheel Label Text</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={wheelSettings.label}
+                      onChange={(e) => setWheelSettings({ ...wheelSettings, label: e.target.value })}
+                      placeholder="20% OFF"
+                    />
+                    <small style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                      Text shown on wheel segments. Usually "{wheelSettings.discountPercent || 20}% OFF".
+                    </small>
+                  </div>
+
+                  {/* Preview */}
+                  <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--pf-cream, #F8F5EF)', borderRadius: '12px', border: '1px dashed var(--pf-gold, #C49A45)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--pf-text-muted, #8A7560)', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Preview</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{
+                        background: 'linear-gradient(135deg, #C49A45, #A67C2E)',
+                        color: '#fff',
+                        padding: '12px 24px',
+                        borderRadius: '12px',
+                        fontWeight: 800,
+                        fontSize: '18px',
+                        letterSpacing: '3px',
+                        fontFamily: 'Playfair Display, serif',
+                      }}>
+                        {wheelSettings.couponCode || 'PRADH20'}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--pf-gold-deep, #A67C2E)' }}>
+                          {wheelSettings.discountPercent || 20}% OFF
+                        </div>
+                        <div style={{ fontSize: '13px', color: 'var(--pf-text-muted, #8A7560)' }}>
+                          Label: "{wheelSettings.label || '20% OFF'}"
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <button
+                    className="btn-primary"
+                    onClick={saveWheelSettings}
+                    disabled={wheelSaving}
+                    style={{ width: '100%', padding: '14px', fontSize: '15px' }}
+                  >
+                    {wheelSaving ? (
+                      <><FaSync className="spin-icon" /> Saving...</>
+                    ) : (
+                      <><FaSave /> Save Wheel Settings</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== ANNOUNCEMENT + CTA SETTINGS ===== */}
+          {section === 'announcement' && (
+            <div className="page-section">
+              <div style={{ marginBottom: '20px' }}>
+                <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>🔔 Announcement & CTA Settings</h1>
+                <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Control the top announcement bar and the First Order Offer CTA banner</p>
+              </div>
+
+              {/* ANNOUNCEMENT BAR Section */}
+              <div className="chart-card" style={{ maxWidth: '600px', margin: '0 auto 20px' }}>
+                <div className="chart-header">
+                  <div className="chart-title"><FaBell className="chart-title-icon" /> Top Announcement Bar</div>
+                </div>
+                <div style={{ padding: '0 8px' }}>
+                  {/* Enable/Disable Toggle */}
+                  <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--pf-cream, #F8F5EF)', borderRadius: '12px', border: '1px solid var(--pf-border, rgba(57, 37, 27, 0.10))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: '700', color: 'var(--pf-chocolate, #39251B)', fontSize: '14px' }}>Show Announcement Bar</div>
+                      <div style={{ fontSize: '12px', color: 'var(--pf-text-muted, #8A7560)', marginTop: '3px' }}>{announcementSettings.announcementEnabled ? '✅ Visible on homepage' : '⛔ Hidden on homepage'}</div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '26px', cursor: 'pointer', flexShrink: 0 }}>
+                      <input type="checkbox" checked={announcementSettings.announcementEnabled} onChange={(e) => setAnnouncementSettings({ ...announcementSettings, announcementEnabled: e.target.checked })} style={{ opacity: 0, width: 0, height: 0 }} />
+                      <span style={{ position: 'absolute', inset: 0, background: announcementSettings.announcementEnabled ? 'linear-gradient(135deg, #C49A45, #A67C2E)' : '#ccc', borderRadius: '26px', transition: '0.3s' }}>
+                        <span style={{ position: 'absolute', top: '3px', left: announcementSettings.announcementEnabled ? '27px' : '3px', width: '20px', height: '20px', background: '#fff', borderRadius: '50%', transition: '0.3s', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }} />
+                      </span>
+                    </label>
+                  </div>
+                  {/* Announcement Text */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <label className="form-label">Announcement Text</label>
+                    <textarea className="form-input" rows={2} value={announcementSettings.announcementText} onChange={(e) => setAnnouncementSettings({ ...announcementSettings, announcementText: e.target.value })} placeholder="Use code PRADH20 for 20% OFF on your first order" />
+                  </div>
+                  {/* Coupon + Discount */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <label className="form-label">Coupon Code</label>
+                      <input type="text" className="form-input" value={announcementSettings.announcementCoupon} onChange={(e) => setAnnouncementSettings({ ...announcementSettings, announcementCoupon: e.target.value.toUpperCase() })} placeholder="PRADH20" style={{ letterSpacing: '1px', fontWeight: 700 }} />
+                    </div>
+                    <div>
+                      <label className="form-label">Discount %</label>
+                      <input type="number" className="form-input" value={announcementSettings.announcementDiscount} onChange={(e) => setAnnouncementSettings({ ...announcementSettings, announcementDiscount: e.target.value })} min="1" max="90" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA BANNER Section */}
+              <div className="chart-card" style={{ maxWidth: '600px', margin: '0 auto 20px' }}>
+                <div className="chart-header">
+                  <div className="chart-title"><FaGift className="chart-title-icon" /> CTA Banner (First Order Offer)</div>
+                </div>
+                <div style={{ padding: '0 8px' }}>
+                  {/* CTA Enable Toggle */}
+                  <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--pf-cream, #F8F5EF)', borderRadius: '12px', border: '1px solid var(--pf-border, rgba(57, 37, 27, 0.10))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: '700', color: 'var(--pf-chocolate, #39251B)', fontSize: '14px' }}>Show CTA Banner</div>
+                      <div style={{ fontSize: '12px', color: 'var(--pf-text-muted, #8A7560)', marginTop: '3px' }}>{announcementSettings.ctaEnabled ? '✅ Visible on homepage' : '⛔ Hidden on homepage'}</div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '26px', cursor: 'pointer', flexShrink: 0 }}>
+                      <input type="checkbox" checked={announcementSettings.ctaEnabled} onChange={(e) => setAnnouncementSettings({ ...announcementSettings, ctaEnabled: e.target.checked })} style={{ opacity: 0, width: 0, height: 0 }} />
+                      <span style={{ position: 'absolute', inset: 0, background: announcementSettings.ctaEnabled ? 'linear-gradient(135deg, #C49A45, #A67C2E)' : '#ccc', borderRadius: '26px', transition: '0.3s' }}>
+                        <span style={{ position: 'absolute', top: '3px', left: announcementSettings.ctaEnabled ? '27px' : '3px', width: '20px', height: '20px', background: '#fff', borderRadius: '50%', transition: '0.3s', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }} />
+                      </span>
+                    </label>
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label className="form-label">CTA Title</label>
+                    <input type="text" className="form-input" value={announcementSettings.ctaTitle} onChange={(e) => setAnnouncementSettings({ ...announcementSettings, ctaTitle: e.target.value })} placeholder="Ready to Fuel Your Desi Strength?" />
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label className="form-label">CTA Description</label>
+                    <textarea className="form-input" rows={2} value={announcementSettings.ctaDesc} onChange={(e) => setAnnouncementSettings({ ...announcementSettings, ctaDesc: e.target.value })} placeholder="Use this coupon code and get flat 20% off on your first order." />
+                  </div>
+                  {/* Preview */}
+                  <div style={{ marginBottom: '12px', padding: '12px', background: 'var(--pf-cream, #F8F5EF)', borderRadius: '10px', border: '1px dashed var(--pf-gold, #C49A45)' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--pf-text-muted, #8A7560)', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Preview</div>
+                    <div style={{ fontWeight: 700, color: 'var(--pf-chocolate, #39251B)', fontSize: '14px' }}>{announcementSettings.ctaTitle || 'Ready to Fuel Your Desi Strength?'}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--pf-text-muted, #8A7560)', marginTop: '4px' }}>{announcementSettings.ctaDesc || 'Use this coupon code...'}</div>
+                    <div style={{ display: 'inline-block', marginTop: '8px', padding: '4px 12px', background: 'rgba(196,154,69,0.10)', border: '1px dashed #C49A45', borderRadius: '8px', color: '#A67C2E', fontWeight: 700, fontSize: '13px', letterSpacing: '2px' }}>{announcementSettings.announcementCoupon || 'PRADH20'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                <button className="btn-primary" onClick={saveAnnouncementSettings} disabled={announcementSaving} style={{ width: '100%', padding: '14px', fontSize: '15px' }}>
+                  {announcementSaving ? (<><FaSync className="spin-icon" /> Saving...</>) : (<><FaSave /> Save Announcement Settings</>)}
+                </button>
               </div>
             </div>
           )}
@@ -1308,13 +1667,13 @@ const AdminPanel = () => {
             <button className="modal-close" onClick={() => setSelectedReturn(null)}>&times;</button>
             <h3><FaUndoAlt /> Return Request Details</h3>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid #334155', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid var(--pf-border, rgba(57, 37, 27, 0.10))', flexWrap: 'wrap', gap: '10px' }}>
               <div>
-                <span style={{ color: '#94a3b8', fontSize: '12px' }}>Request ID</span>
-                <div style={{ color: '#facc15', fontWeight: '700', fontSize: '18px' }}>{selectedReturn.id}</div>
+                <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px' }}>Request ID</span>
+                <div style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontWeight: '700', fontSize: '18px' }}>{selectedReturn.id}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <span style={{ color: '#94a3b8', fontSize: '12px' }}>Status</span>
+                <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px' }}>Status</span>
                 <div><span className={`status-badge status-${selectedReturn.status === 'approved' ? 'active' : selectedReturn.status === 'rejected' ? 'inactive' : 'pending'}`}>{(selectedReturn.status || 'pending').toUpperCase()}</span></div>
               </div>
             </div>
@@ -1340,7 +1699,7 @@ const AdminPanel = () => {
 
             <div style={{ marginTop: '15px', padding: '12px 16px', background: 'rgba(37, 211, 102, 0.08)', border: '1px solid rgba(37, 211, 102, 0.3)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <FaWhatsapp style={{ color: '#25D366', fontSize: '20px' }} />
-              <span style={{ color: '#94a3b8', fontSize: '13px', flex: 1 }}>Contact customer on WhatsApp to resolve</span>
+              <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px', flex: 1 }}>Contact customer on WhatsApp to resolve</span>
               <a
                 href={`https://wa.me/${selectedReturn.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${selectedReturn.name}, regarding your ${selectedReturn.requestType} request (${selectedReturn.id}) for order ${selectedReturn.orderId}. Let's resolve this!`)}`}
                 target="_blank"
@@ -1387,13 +1746,13 @@ const AdminPanel = () => {
             <button className="modal-close" onClick={() => setSelectedOrder(null)}>&times;</button>
             <h3><FaReceipt /> Order Details</h3>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid #334155', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid var(--pf-border, rgba(57, 37, 27, 0.10))', flexWrap: 'wrap', gap: '10px' }}>
               <div>
-                <span style={{ color: '#94a3b8', fontSize: '12px' }}>Order ID</span>
-                <div style={{ color: '#facc15', fontWeight: '700', fontSize: '18px' }}>{selectedOrder.id || selectedOrder.order_id}</div>
+                <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px' }}>Order ID</span>
+                <div style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontWeight: '700', fontSize: '18px' }}>{selectedOrder.id || selectedOrder.order_id}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <span style={{ color: '#94a3b8', fontSize: '12px' }}>Status</span>
+                <span style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '12px' }}>Status</span>
                 <div><span className={`status-badge status-${selectedOrder.status || 'pending'}`}>{(selectedOrder.status || 'pending').toUpperCase()}</span></div>
               </div>
             </div>
@@ -1413,7 +1772,7 @@ const AdminPanel = () => {
               </div>
               <div className="detail-item">
                 <div className="label">Coupon Applied</div>
-                <div className="value" style={{ color: selectedOrder.coupon ? '#22c55e' : '#64748b' }}>{selectedOrder.coupon || 'None'}</div>
+                <div className="value" style={{ color: selectedOrder.coupon ? '#15823f' : 'var(--pf-text-muted, #8A7560)' }}>{selectedOrder.coupon || 'None'}</div>
               </div>
               <div className="detail-item" style={{ gridColumn: 'span 2' }}>
                 <div className="label">Customer Name</div>
@@ -1442,7 +1801,7 @@ const AdminPanel = () => {
             </div>
 
             <div style={{ margin: '15px 0' }}>
-              <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '8px' }}>
+              <div style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px', marginBottom: '8px' }}>
                 Order Items ({(selectedOrder.items || []).reduce((s, i) => s + (i.quantity || 0), 0)} items)
               </div>
               <div className="order-items-list">
@@ -1457,18 +1816,18 @@ const AdminPanel = () => {
                     </div>
                   ))
                 ) : (
-                  <div style={{ color: '#64748b', padding: '10px', textAlign: 'center' }}>No items in this order</div>
+                  <div style={{ color: 'var(--pf-text-muted, #8A7560)', padding: '10px', textAlign: 'center' }}>No items in this order</div>
                 )}
               </div>
             </div>
 
-            <div style={{ background: '#0f172a', borderRadius: '8px', padding: '15px', border: '1px solid #334155' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#94a3b8' }}>
+            <div style={{ background: 'var(--pf-cream, #F8F5EF)', borderRadius: '8px', padding: '15px', border: '1px solid var(--pf-border-strong, rgba(57, 37, 27, 0.18))' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: 'var(--pf-text-muted, #8A7560)' }}>
                 <span>Subtotal</span>
                 <span>₹{(selectedOrder.total || 0).toFixed(2)}</span>
               </div>
               {selectedOrder.deliveryCharge !== undefined && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#94a3b8' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: 'var(--pf-text-muted, #8A7560)' }}>
                   <span>Delivery Charge</span>
                   <span style={{ color: selectedOrder.deliveryCharge === 0 ? '#22c55e' : '#94a3b8' }}>
                     {selectedOrder.deliveryCharge === 0 ? 'FREE' : `₹${selectedOrder.deliveryCharge.toFixed(2)}`}
@@ -1476,14 +1835,14 @@ const AdminPanel = () => {
                 </div>
               )}
               {selectedOrder.coupon && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#22c55e' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#15823f' }}>
                   <span>Discount ({selectedOrder.coupon})</span>
                   <span>-₹{(selectedOrder.discount || 0).toFixed(2)}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 5px 0', borderTop: '2px solid #334155', marginTop: '5px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 5px 0', borderTop: '2px solid var(--pf-border, rgba(57, 37, 27, 0.10))', marginTop: '5px' }}>
                 <span style={{ fontWeight: '700', fontSize: '18px' }}>Total</span>
-                <span style={{ color: '#facc15', fontWeight: '700', fontSize: '20px' }}>₹{(selectedOrder.total || 0).toFixed(2)}</span>
+                <span style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontWeight: '700', fontSize: '20px' }}>₹{(selectedOrder.total || 0).toFixed(2)}</span>
               </div>
             </div>
 

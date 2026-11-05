@@ -1,24 +1,32 @@
 import { useState, useEffect, useRef } from 'react';
 import { FaTimes, FaGift, FaSync, FaCopy, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { apiFetch } from '../../services/api';
 import './DiscountWheel.css';
 
 // ============================================
-// ALL SEGMENTS = PRADH20 (20% OFF)
-// Wheel kahin bhi ruke, user ko HAMESHA PRADH20 milega
+// DEFAULT FALLBACK (if API fails)
 // ============================================
-const SEGMENTS = [
-  { label: '20% OFF', code: 'PRADH20', color: '#39251B', textColor: '#F8F5EF', discount: 20 },
-  { label: '20% OFF', code: 'PRADH20', color: '#C49A45', textColor: '#FFFFFF', discount: 20 },
-  { label: '20% OFF', code: 'PRADH20', color: '#A67C2E', textColor: '#FFFFFF', discount: 20 },
-  { label: '20% OFF', code: 'PRADH20', color: '#8A5A3C', textColor: '#F8F5EF', discount: 20 },
-  { label: '20% OFF', code: 'PRADH20', color: '#39251B', textColor: '#F8F5EF', discount: 20 },
-  { label: '20% OFF', code: 'PRADH20', color: '#C49A45', textColor: '#FFFFFF', discount: 20 },
-  { label: '20% OFF', code: 'PRADH20', color: '#A67C2E', textColor: '#FFFFFF', discount: 20 },
-  { label: '20% OFF', code: 'PRADH20', color: '#8A5A3C', textColor: '#F8F5EF', discount: 20 },
+const DEFAULT_SETTINGS = {
+  couponCode: 'PRADH20',
+  discountPercent: 20,
+  label: '20% OFF',
+  enabled: true,
+};
+
+// Wheel colors — warm theme (alternating chocolate/gold)
+const WHEEL_COLORS = [
+  { color: '#39251B', textColor: '#F8F5EF' },
+  { color: '#C49A45', textColor: '#FFFFFF' },
+  { color: '#A67C2E', textColor: '#FFFFFF' },
+  { color: '#8A5A3C', textColor: '#F8F5EF' },
+  { color: '#39251B', textColor: '#F8F5EF' },
+  { color: '#C49A45', textColor: '#FFFFFF' },
+  { color: '#A67C2E', textColor: '#FFFFFF' },
+  { color: '#8A5A3C', textColor: '#F8F5EF' },
 ];
 
-// Celebration sound (Web Audio API — no external file)
+// Celebration sound
 const playCelebrationSound = () => {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -79,16 +87,45 @@ const DiscountWheel = () => {
   const [result, setResult] = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [wheelSettings, setWheelSettings] = useState(DEFAULT_SETTINGS);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const wheelRef = useRef(null);
   const tickIntervalRef = useRef(null);
 
-  // Show wheel on first visit
+  // ✅ FETCH WHEEL SETTINGS FROM ADMIN PANEL (API)
   useEffect(() => {
+    const fetchWheelSettings = async () => {
+      try {
+        const res = await apiFetch('/api/wheel-settings');
+        const data = await res.json();
+        if (data.success) {
+          setWheelSettings({
+            couponCode: data.couponCode || 'PRADH20',
+            discountPercent: data.discountPercent || 20,
+            label: data.label || `${data.discountPercent || 20}% OFF`,
+            enabled: data.enabled !== false,
+          });
+        }
+      } catch (err) {
+        console.warn('Wheel settings fetch failed, using defaults:', err);
+        // Keep default settings
+      } finally {
+        setSettingsLoaded(true);
+      }
+    };
+    fetchWheelSettings();
+  }, []);
+
+  // Show wheel on first visit (only if enabled in admin settings)
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    if (!wheelSettings.enabled) return; // Admin disabled the wheel
+
     const hasSeenWheel = localStorage.getItem('pradh_wheel_seen');
     if (!hasSeenWheel) {
       setTimeout(() => setShow(true), 1500);
     }
-  }, []);
+  }, [settingsLoaded, wheelSettings.enabled]);
 
   // Cleanup
   useEffect(() => {
@@ -107,23 +144,21 @@ const DiscountWheel = () => {
     setSpinning(true);
     setResult(null);
 
-    // Ticking sound during spin
     if (soundEnabled) {
       tickIntervalRef.current = setInterval(() => {
         playTickSound();
       }, 150);
     }
 
-    // ✅ Random index — ALL segments give PRADH20, so any landing = win
-    const randomIndex = Math.floor(Math.random() * SEGMENTS.length);
+    const numSegments = WHEEL_COLORS.length;
+    const randomIndex = Math.floor(Math.random() * numSegments);
 
-    const segmentAngle = 360 / SEGMENTS.length;
+    const segmentAngle = 360 / numSegments;
     const extraSpins = 6 + Math.floor(Math.random() * 3);
     const targetAngle = extraSpins * 360 + randomIndex * segmentAngle + segmentAngle / 2;
 
     setRotation(targetAngle);
 
-    // Stop tick sound
     setTimeout(() => {
       if (tickIntervalRef.current) {
         clearInterval(tickIntervalRef.current);
@@ -131,13 +166,20 @@ const DiscountWheel = () => {
       }
     }, 4400);
 
-    // ✅ ALWAYS show PRADH20 result (no "Try Again" — everyone wins)
+    // ✅ ALWAYS show the admin-configured coupon
     setTimeout(() => {
-      const wonSegment = SEGMENTS[randomIndex]; // Always PRADH20
       setSpinning(false);
-      setResult(wonSegment);
+      setResult({
+        label: wheelSettings.label,
+        code: wheelSettings.couponCode,
+        discount: wheelSettings.discountPercent,
+      });
       setShowCelebration(true);
-      localStorage.setItem('pradh_coupon', JSON.stringify(wonSegment));
+      localStorage.setItem('pradh_coupon', JSON.stringify({
+        label: wheelSettings.label,
+        code: wheelSettings.couponCode,
+        discount: wheelSettings.discountPercent,
+      }));
       localStorage.setItem('pradh_wheel_seen', 'true');
 
       if (soundEnabled) {
@@ -151,7 +193,7 @@ const DiscountWheel = () => {
   const copyCoupon = () => {
     if (result?.code) {
       navigator.clipboard.writeText(result.code);
-      toast.success('Coupon PRADH20 copied! 🎉');
+      toast.success(`Coupon ${result.code} copied! 🎉`);
     }
   };
 
@@ -161,7 +203,8 @@ const DiscountWheel = () => {
     setShowCelebration(false);
   };
 
-  if (!show) return null;
+  // Don't render if settings not loaded or wheel disabled
+  if (!settingsLoaded || !show || !wheelSettings.enabled) return null;
 
   return (
     <>
@@ -223,12 +266,12 @@ const DiscountWheel = () => {
             <div className="wheel-icon">🎁</div>
             <h2>Spin &amp; Win</h2>
             <p className="wheel-subtitle">
-              You're guaranteed <strong>20% OFF</strong>!
+              You're guaranteed <strong>{wheelSettings.discountPercent}% OFF</strong>!
             </p>
             <p className="wheel-tagline">Spin the wheel to reveal your coupon</p>
           </div>
 
-          {/* WHEEL */}
+          {/* WHEEL — all segments show admin-configured label */}
           <div className="wheel-container">
             <div className="wheel-pointer">▼</div>
 
@@ -240,25 +283,25 @@ const DiscountWheel = () => {
                 transitionDuration: spinning ? '4.5s' : '0s',
               }}
             >
-              {SEGMENTS.map((segment, i) => {
-                const angle = (360 / SEGMENTS.length) * i;
-                const segAngle = 360 / SEGMENTS.length;
+              {WHEEL_COLORS.map((seg, i) => {
+                const angle = (360 / WHEEL_COLORS.length) * i;
+                const segAngle = 360 / WHEEL_COLORS.length;
                 return (
                   <div
                     key={i}
                     className="wheel-segment"
                     style={{
                       transform: `rotate(${angle}deg)`,
-                      background: segment.color,
+                      background: seg.color,
                     }}
                   >
                     <span
                       style={{
-                        color: segment.textColor,
+                        color: seg.textColor,
                         transform: `rotate(${segAngle / 2}deg) translateY(-90px)`,
                       }}
                     >
-                      {segment.label}
+                      {wheelSettings.label}
                     </span>
                   </div>
                 );
@@ -269,7 +312,6 @@ const DiscountWheel = () => {
               </div>
             </div>
 
-            {/* Decorative dots */}
             <div className="wheel-dots">
               {[...Array(16)].map((_, i) => (
                 <div
@@ -283,16 +325,16 @@ const DiscountWheel = () => {
             </div>
           </div>
 
-          {/* RESULT — always PRADH20 */}
+          {/* RESULT — shows admin-configured coupon */}
           {result && (
             <div className="wheel-result win">
               <div className="result-emoji">🎉</div>
               <h3>Congratulations!</h3>
               <p className="result-subtitle">
-                You won <strong>20% OFF</strong> 🎊
+                You won <strong>{wheelSettings.discountPercent}% OFF</strong> 🎊
               </p>
               <div className="coupon-code" onClick={copyCoupon}>
-                <span>PRADH20</span>
+                <span>{wheelSettings.couponCode}</span>
                 <FaCopy />
               </div>
               <p className="coupon-hint">Click to copy • Use at checkout</p>
@@ -323,7 +365,3 @@ const DiscountWheel = () => {
 };
 
 export default DiscountWheel;
-
-
-
-//localStorage.removeItem('pradh_wheel_seen')//

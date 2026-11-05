@@ -22,6 +22,8 @@ export const apiFetch = async (path, options = {}) => {
     path === '/api/return-requests' ||            // GET admin, POST public (token ignored)
     path.startsWith('/api/return-requests/') ||   // /:id (PUT/DELETE admin, GET semi-public)
     path === '/api/delivery-charge' ||            // GET public (token ignored), PUT admin
+    path === '/api/wheel-settings' ||             // GET public (token ignored), PUT admin
+    path === '/api/announcement-settings' ||       // GET public (token ignored), PUT admin
     /^\/api\/orders\/[^/]+$/.test(path);          // exactly /api/orders/:id (PUT admin) — but NOT /api/orders/:id/cancel or /return (user-auth POST)
 
   const token = isAdminRoute

@@ -137,6 +137,18 @@ const settingsSchema = new mongoose.Schema({
   key: { type: String, unique: true, required: true },
   deliveryCharge: { type: Number, default: 49 },
   freeDeliveryThreshold: { type: Number, default: 999 },
+  wheelCouponCode: { type: String, default: 'PRADH20' },
+  wheelDiscountPercent: { type: Number, default: 20 },
+  wheelLabel: { type: String, default: '20% OFF' },
+  wheelEnabled: { type: Boolean, default: true },
+  // Announcement Bar + CTA Banner settings
+  announcementEnabled: { type: Boolean, default: true },
+  announcementText: { type: String, default: 'Use code PRADH20 for 20% OFF on your first order — Limited time only' },
+  announcementCoupon: { type: String, default: 'PRADH20' },
+  announcementDiscount: { type: Number, default: 20 },
+  ctaEnabled: { type: Boolean, default: true },
+  ctaTitle: { type: String, default: 'Ready to Fuel Your Desi Strength?' },
+  ctaDesc: { type: String, default: 'Use this coupon code and get flat 20% off on your first order.' },
   lastUpdated: { type: Date, default: Date.now },
 });
 
@@ -1849,6 +1861,124 @@ app.post('/api/admin/logout', verifyAdminToken, async (req, res) => {
 });
 
 // ============================================
+// WHEEL SETTINGS API
+// ============================================
+app.get('/api/wheel-settings', async (req, res) => {
+  try {
+    let setting = await Setting.findOne({ key: 'wheel' });
+    if (!setting) {
+      setting = await Setting.create({
+        key: 'wheel',
+        wheelCouponCode: 'PRADH20',
+        wheelDiscountPercent: 20,
+        wheelLabel: '20% OFF',
+        wheelEnabled: true,
+      });
+    }
+    res.json({
+      success: true,
+      couponCode: setting.wheelCouponCode || 'PRADH20',
+      discountPercent: setting.wheelDiscountPercent || 20,
+      label: setting.wheelLabel || '20% OFF',
+      enabled: setting.wheelEnabled !== false,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/wheel-settings', verifyAdminToken, async (req, res) => {
+  try {
+    const { couponCode, discountPercent, label, enabled } = req.body;
+    const update = { lastUpdated: new Date() };
+    if (couponCode !== undefined) update.wheelCouponCode = couponCode.toUpperCase().trim();
+    if (discountPercent !== undefined) update.wheelDiscountPercent = parseInt(discountPercent);
+    if (label !== undefined) update.wheelLabel = label.trim();
+    if (enabled !== undefined) update.wheelEnabled = enabled;
+    const setting = await Setting.findOneAndUpdate({ key: 'wheel' }, update, { new: true, upsert: true });
+    console.log('✅ Wheel settings updated:', setting.wheelCouponCode, setting.wheelDiscountPercent + '%', setting.wheelEnabled);
+    res.json({
+      success: true,
+      message: 'Wheel settings updated!',
+      settings: {
+        couponCode: setting.wheelCouponCode,
+        discountPercent: setting.wheelDiscountPercent,
+        label: setting.wheelLabel,
+        enabled: setting.wheelEnabled,
+      },
+    });
+  } catch (error) {
+    console.error('Wheel settings error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// ANNOUNCEMENT + CTA SETTINGS API
+// ============================================
+app.get('/api/announcement-settings', async (req, res) => {
+  try {
+    let setting = await Setting.findOne({ key: 'announcement' });
+    if (!setting) {
+      setting = await Setting.create({
+        key: 'announcement',
+        announcementEnabled: true,
+        announcementText: 'Use code PRADH20 for 20% OFF on your first order — Limited time only',
+        announcementCoupon: 'PRADH20',
+        announcementDiscount: 20,
+        ctaEnabled: true,
+        ctaTitle: 'Ready to Fuel Your Desi Strength?',
+        ctaDesc: 'Use this coupon code and get flat 20% off on your first order.',
+      });
+    }
+    res.json({
+      success: true,
+      announcementEnabled: setting.announcementEnabled !== false,
+      announcementText: setting.announcementText || 'Use code PRADH20 for 20% OFF on your first order — Limited time only',
+      announcementCoupon: setting.announcementCoupon || 'PRADH20',
+      announcementDiscount: setting.announcementDiscount || 20,
+      ctaEnabled: setting.ctaEnabled !== false,
+      ctaTitle: setting.ctaTitle || 'Ready to Fuel Your Desi Strength?',
+      ctaDesc: setting.ctaDesc || 'Use this coupon code and get flat 20% off on your first order.',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/announcement-settings', verifyAdminToken, async (req, res) => {
+  try {
+    const { announcementEnabled, announcementText, announcementCoupon, announcementDiscount, ctaEnabled, ctaTitle, ctaDesc } = req.body;
+    const update = { lastUpdated: new Date() };
+    if (announcementEnabled !== undefined) update.announcementEnabled = announcementEnabled;
+    if (announcementText !== undefined) update.announcementText = announcementText.trim();
+    if (announcementCoupon !== undefined) update.announcementCoupon = announcementCoupon.toUpperCase().trim();
+    if (announcementDiscount !== undefined) update.announcementDiscount = parseInt(announcementDiscount);
+    if (ctaEnabled !== undefined) update.ctaEnabled = ctaEnabled;
+    if (ctaTitle !== undefined) update.ctaTitle = ctaTitle.trim();
+    if (ctaDesc !== undefined) update.ctaDesc = ctaDesc.trim();
+    const setting = await Setting.findOneAndUpdate({ key: 'announcement' }, update, { new: true, upsert: true });
+    console.log('✅ Announcement settings updated:', setting.announcementEnabled, setting.ctaEnabled);
+    res.json({
+      success: true,
+      message: 'Announcement settings updated!',
+      settings: {
+        announcementEnabled: setting.announcementEnabled,
+        announcementText: setting.announcementText,
+        announcementCoupon: setting.announcementCoupon,
+        announcementDiscount: setting.announcementDiscount,
+        ctaEnabled: setting.ctaEnabled,
+        ctaTitle: setting.ctaTitle,
+        ctaDesc: setting.ctaDesc,
+      },
+    });
+  } catch (error) {
+    console.error('Announcement settings error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
 // LOAD SETTINGS ON STARTUP
 // ============================================
 (async function initSettings() {
@@ -1865,3 +1995,19 @@ app.listen(PORT, () => {
   console.log('✅ Free Delivery Threshold: ₹' + deliverySettings.freeDeliveryThreshold);
   console.log('✅ Server is ready!\n');
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// (wheel settings routes are above, before app.listen)
