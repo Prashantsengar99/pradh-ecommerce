@@ -1,0 +1,387 @@
+/* =====================================================================
+   DARK MODE — Clean Aesthetic Edition
+   =====================================================================
+   REMOVE KARNE KE LIYE:
+   1. main.jsx se `import './styles/darkmode.css'` hata do
+   2. Navbar.jsx se dark mode toggle code hata do
+   3. Ye file delete kar do
+   ===================================================================== */
+
+/* ============================================
+   CLEAN DARK PALETTE
+   Near-black background + pure white text
+   No brown tones — modern minimal aesthetic
+   ============================================ */
+[data-theme="dark"] {
+  /* Backgrounds — clean dark grays (NOT brown) */
+  --pf-cream: #0f0f0f;
+  --pf-beige: #161616;
+  --pf-sand: #1e1e1e;
+  --pf-white: #1a1a1a;
+  --pf-bg: #0f0f0f;
+  --pf-bg-alt: #161616;
+  --pf-surface: #1a1a1a;
+  --pf-charcoal: #0a0a0a;
+
+  /* Text — clean white/gray (NOT cream) */
+  --pf-chocolate: #ffffff;
+  --pf-text: #ffffff;
+  --pf-text-soft: #c0c0c0;
+  --pf-text-muted: #808080;
+  --pf-brown: #c0c0c0;
+
+  /* Gold — slightly brighter for dark bg */
+  --pf-gold: #D9B872;
+  --pf-gold-soft: #E8C988;
+  --pf-gold-deep: #C49A45;
+
+  /* Borders — very subtle */
+  --pf-border: rgba(255, 255, 255, 0.06);
+  --pf-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Shadows — clean dark */
+  --pf-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --pf-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --pf-shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.6);
+  --pf-shadow-gold: 0 12px 30px rgba(217, 184, 114, 0.12);
+}
+
+/* ============================================
+   SPECIFIC OVERRIDES — Clean & Minimal
+   ============================================ */
+
+/* Navbar — dark glass */
+[data-theme="dark"] .navbar {
+  background: rgba(15, 15, 15, 0.80) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .navbar.scrolled {
+  background: rgba(15, 15, 15, 0.95) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .nav-search {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+[data-theme="dark"] .nav-search input {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .nav-search input::placeholder {
+  color: #606060 !important;
+}
+[data-theme="dark"] .nav-search:focus-within {
+  border-color: #D9B872 !important;
+  box-shadow: 0 0 0 3px rgba(217, 184, 114, 0.10) !important;
+}
+[data-theme="dark"] .nav-search .search-icon {
+  color: #606060 !important;
+}
+[data-theme="dark"] .nav-search button[type="submit"] {
+  background: #D9B872 !important;
+  color: #0f0f0f !important;
+}
+
+/* Logo */
+[data-theme="dark"] .nav-logo .brand {
+  color: #ffffff !important;
+}
+
+/* Bottom nav (mobile) */
+[data-theme="dark"] .bottom-nav {
+  background: rgba(15, 15, 15, 0.95) !important;
+  border-top-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.3) !important;
+}
+[data-theme="dark"] .bottom-nav-item {
+  color: #606060 !important;
+}
+[data-theme="dark"] .bottom-nav-item.active {
+  color: #D9B872 !important;
+}
+
+/* Hero — clean dark gradient */
+[data-theme="dark"] .pf-hero {
+  background:
+    radial-gradient(ellipse at 75% 30%, rgba(217, 184, 114, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 20% 80%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+    linear-gradient(180deg, #0f0f0f 0%, #161616 100%) !important;
+}
+[data-theme="dark"] .pf-hero-orb--gold {
+  background: rgba(217, 184, 114, 0.08) !important;
+}
+
+/* Trust strip */
+[data-theme="dark"] .pf-trust {
+  background: #0a0a0a !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Section headers */
+[data-theme="dark"] .pf-section-title {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-accent,
+[data-theme="dark"] .pf-kicker {
+  color: #D9B872 !important;
+}
+[data-theme="dark"] .pf-section-sub {
+  color: #808080 !important;
+}
+
+/* Cards — clean dark surface */
+[data-theme="dark"] .pf-usp-card,
+[data-theme="dark"] .pf-ingredient-card,
+[data-theme="dark"] .pf-step-card,
+[data-theme="dark"] .pf-review-card,
+[data-theme="dark"] .pf-faq-item,
+[data-theme="dark"] .pf-product-card {
+  background: #161616 !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .pf-product-media {
+  background: linear-gradient(135deg, #1a1a1a 0%, #222222 100%) !important;
+}
+[data-theme="dark"] .pf-usp-card:hover,
+[data-theme="dark"] .pf-ingredient-card:hover,
+[data-theme="dark"] .pf-product-card:hover {
+  border-color: rgba(217, 184, 114, 0.25) !important;
+}
+
+/* Card text */
+[data-theme="dark"] .pf-usp-title,
+[data-theme="dark"] .pf-ingredient-title,
+[data-theme="dark"] .pf-step-title,
+[data-theme="dark"] .pf-product-name {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-usp-desc,
+[data-theme="dark"] .pf-ingredient-desc,
+[data-theme="dark"] .pf-step-desc {
+  color: #808080 !important;
+}
+
+/* USP index number */
+[data-theme="dark"] .pf-usp-index {
+  color: #404040 !important;
+  opacity: 0.8;
+}
+
+/* FAQ */
+[data-theme="dark"] .pf-faq-question {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-faq-answer p {
+  color: #808080 !important;
+}
+
+/* Review text */
+[data-theme="dark"] .pf-review-text {
+  color: #e0e0e0 !important;
+}
+[data-theme="dark"] .pf-review-name {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-review-card::before {
+  color: rgba(217, 184, 114, 0.08) !important;
+}
+
+/* CTA banner — dark with subtle gold */
+[data-theme="dark"] .pf-cta-banner {
+  background:
+    radial-gradient(ellipse at 80% 20%, rgba(217, 184, 114, 0.08) 0%, transparent 55%),
+    linear-gradient(135deg, #161616 0%, #1e1e1e 100%) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .pf-cta-title {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-cta-desc {
+  color: #909090 !important;
+}
+
+/* Newsletter */
+[data-theme="dark"] .pf-newsletter {
+  background: linear-gradient(180deg, #161616 0%, #0f0f0f 100%) !important;
+}
+[data-theme="dark"] .pf-newsletter-title {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-newsletter-form input {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+[data-theme="dark"] .pf-newsletter-form input::placeholder {
+  color: #606060 !important;
+}
+[data-theme="dark"] .pf-newsletter-form input:focus {
+  border-color: #D9B872 !important;
+  box-shadow: 0 0 0 3px rgba(217, 184, 114, 0.10) !important;
+}
+
+/* Footer — darker */
+[data-theme="dark"] .pf-footer {
+  background: linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 100%) !important;
+}
+[data-theme="dark"] .pf-footer-desc {
+  color: #707070 !important;
+}
+[data-theme="dark"] .pf-footer-list li a {
+  color: #909090 !important;
+}
+[data-theme="dark"] .pf-footer-heading {
+  color: #D9B872 !important;
+}
+
+/* Buttons */
+[data-theme="dark"] .pf-btn--primary {
+  background: #D9B872 !important;
+  color: #0f0f0f !important;
+}
+[data-theme="dark"] .pf-btn--ghost {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-btn--ghost:hover {
+  border-color: #D9B872 !important;
+  color: #D9B872 !important;
+  background: rgba(217, 184, 114, 0.06) !important;
+}
+
+/* Product price */
+[data-theme="dark"] .pf-product-price {
+  color: #D9B872 !important;
+}
+
+/* Tags */
+[data-theme="dark"] .pf-tag--green {
+  background: rgba(34, 197, 94, 0.08) !important;
+  border-color: rgba(34, 197, 94, 0.15) !important;
+  color: #4ade80 !important;
+}
+
+/* ============================================
+   ADMIN PANEL — Dark
+   ============================================ */
+[data-theme="dark"] .admin-body {
+  background: #0f0f0f !important;
+}
+[data-theme="dark"] .sidebar {
+  background: linear-gradient(180deg, #161616 0%, #0f0f0f 100%) !important;
+  border-right-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .main-content {
+  background: #0f0f0f !important;
+}
+[data-theme="dark"] .chart-card,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .stat-card-enhanced {
+  background: #161616 !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .table-container {
+  background: #161616 !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .table-container th {
+  background: #0a0a0a !important;
+  color: #D9B872 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .table-container td {
+  color: #e0e0e0 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
+}
+[data-theme="dark"] .table-container tr:hover td {
+  background: rgba(217, 184, 114, 0.04) !important;
+}
+[data-theme="dark"] .form-input {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+[data-theme="dark"] .form-input::placeholder {
+  color: #606060 !important;
+}
+[data-theme="dark"] .form-input:focus {
+  border-color: #D9B872 !important;
+  box-shadow: 0 0 0 3px rgba(217, 184, 114, 0.10) !important;
+  background: #1a1a1a !important;
+}
+
+/* Modal */
+[data-theme="dark"] .modal-content {
+  background: #161616 !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .modal-close {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .detail-item {
+  background: #1a1a1a !important;
+}
+
+/* Admin login */
+[data-theme="dark"] .admin-login-page {
+  background: linear-gradient(180deg, #0f0f0f 0%, #0a0a0a 100%) !important;
+}
+[data-theme="dark"] .admin-login-container {
+  background: rgba(22, 22, 22, 0.92) !important;
+  border-color: rgba(217, 184, 114, 0.22) !important;
+}
+
+/* ============================================
+   SCROLLBAR — Minimal
+   ============================================ */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #0f0f0f;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 10px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #444444;
+}
+
+/* ============================================
+   TOGGLE BUTTON — Clean
+   ============================================ */
+.darkmode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(196, 154, 69, 0.08);
+  border: 1px solid rgba(196, 154, 69, 0.18);
+  color: #A67C2E;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+.darkmode-toggle:hover {
+  background: rgba(196, 154, 69, 0.15);
+  border-color: #C49A45;
+  transform: scale(1.08);
+}
+[data-theme="dark"] .darkmode-toggle {
+  background: rgba(217, 184, 114, 0.12);
+  border-color: rgba(217, 184, 114, 0.25);
+  color: #D9B872;
+}
+
+/* Bottom nav toggle (mobile) */
+.bottom-nav .darkmode-toggle {
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+}

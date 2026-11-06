@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import '../../styles/admin.css';
+import '../../styles/tracking.css';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -59,6 +60,12 @@ const AdminPanel = () => {
     ctaDesc: 'Use this coupon code and get flat 20% off on your first order.',
   });
   const [announcementSaving, setAnnouncementSaving] = useState(false);
+
+  // ✅ ORDER SEARCH + FILTER
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderFilter, setOrderFilter] = useState('all');
+  const [trackingInfo, setTrackingInfo] = useState({ trackingNumber: '', shippingPartner: '', estimatedDelivery: '' });
+  const [trackingSaving, setTrackingSaving] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem('adminLoggedIn')) {
@@ -351,6 +358,17 @@ const AdminPanel = () => {
   };
 
   // ORDERS
+  const filteredOrders = orders.filter((o) => {
+    const q = orderSearch.toLowerCase().trim();
+    const matchesSearch = !q ||
+      (o.id || '').toLowerCase().includes(q) ||
+      (o.customer?.name || '').toLowerCase().includes(q) ||
+      (o.customer?.phone || '').includes(q) ||
+      (o.customer?.email || '').toLowerCase().includes(q);
+    const matchesFilter = orderFilter === 'all' || o.status === orderFilter;
+    return matchesSearch && matchesFilter;
+  });
+
   const updateOrderStatus = async (orderId, status) => {
     if (!window.confirm(`Update order status to "${status}"?`)) return;
     try {
@@ -364,8 +382,33 @@ const AdminPanel = () => {
         toast.success('Status updated!');
         loadOrders();
         loadDashboard();
+        if (selectedOrder?.id === orderId) setSelectedOrder(data.order);
+      } else {
+        toast.error(data.error || 'Update failed');
       }
-    } catch (err) { toast.error('Error'); }
+    } catch (err) { toast.error('Error updating status'); }
+  };
+
+  // ✅ SAVE TRACKING INFO (tracking number, shipping partner, ETA)
+  const saveTrackingInfo = async () => {
+    if (!selectedOrder) return;
+    setTrackingSaving(true);
+    try {
+      const res = await apiFetch(`/api/orders/${selectedOrder.id}/tracking`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trackingInfo),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Shipping info updated!');
+        loadOrders();
+        if (selectedOrder) setSelectedOrder(data.order);
+      } else {
+        toast.error(data.error || 'Update failed');
+      }
+    } catch (err) { toast.error('Error updating tracking info'); }
+    finally { setTrackingSaving(false); }
   };
 
   // COUPONS
@@ -1024,6 +1067,37 @@ const AdminPanel = () => {
                 </div>
                 <button className="btn-primary" onClick={loadOrders}><FaSync /> Refresh</button>
               </div>
+
+              {/* ✅ SEARCH + FILTER */}
+              <div className="admin-order-search">
+                <input
+                  type="text"
+                  className="admin-search-input"
+                  placeholder="🔍 Search by Order ID, customer name, phone, or email..."
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                />
+                <select
+                  className="admin-filter-select"
+                  value={orderFilter}
+                  onChange={(e) => setOrderFilter(e.target.value)}
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="packed">Packed</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="out_for_delivery">Out for Delivery</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="return_requested">Return Requested</option>
+                  <option value="returned">Returned</option>
+                  <option value="refund_initiated">Refund Initiated</option>
+                  <option value="refunded">Refunded</option>
+                </select>
+              </div>
+
               <div className="table-container">
                 <table>
                   <thead>
@@ -1039,7 +1113,7 @@ const AdminPanel = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map((o) => (
+                    {filteredOrders.map((o) => (
                       <tr key={o.id || o.order_id}>
                         <td><span style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontFamily: 'monospace', fontSize: '13px' }}>{o.id || o.order_id}</span></td>
                         <td><strong>{o.customer?.name || 'Guest'}</strong></td>
@@ -1049,21 +1123,27 @@ const AdminPanel = () => {
                         <td>
                           <select value={o.status || 'pending'} onChange={(e) => updateOrderStatus(o.id || o.order_id, e.target.value)} style={{ background: 'var(--pf-cream, #F8F5EF)', color: 'var(--pf-chocolate, #39251B)', border: '1px solid var(--pf-border-strong, rgba(57, 37, 27, 0.18))', borderRadius: '6px', padding: '4px 8px' }}>
                             <option value="pending">Pending</option>
-                            <option value="paid">Paid</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="packed">Packed</option>
                             <option value="shipped">Shipped</option>
+                            <option value="out_for_delivery">Out for Delivery</option>
                             <option value="delivered">Delivered</option>
                             <option value="cancelled">Cancelled</option>
+                            <option value="return_requested">Return Requested</option>
+                            <option value="returned">Returned</option>
+                            <option value="refund_initiated">Refund Initiated</option>
+                            <option value="refunded">Refunded</option>
                           </select>
                         </td>
                         <td style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px' }}>{o.date ? new Date(o.date).toLocaleDateString() : 'N/A'}</td>
                         <td>
-                          <button className="btn-info" onClick={() => setSelectedOrder(o)} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                          <button className="btn-info" onClick={() => { setSelectedOrder(o); setTrackingInfo({ trackingNumber: o.trackingNumber || '', shippingPartner: o.shippingPartner || '', estimatedDelivery: o.estimatedDelivery ? o.estimatedDelivery.split('T')[0] : '' }); }} style={{ padding: '4px 12px', fontSize: '12px' }}>
                             <FaEye /> View
                           </button>
                         </td>
                       </tr>
                     ))}
-                    {orders.length === 0 && (
+                    {filteredOrders.length === 0 && (
                       <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--pf-text-muted, #8A7560)', padding: '40px' }}>No orders found</td></tr>
                     )}
                   </tbody>
@@ -1851,6 +1931,63 @@ const AdminPanel = () => {
                 <strong>Cancellation Reason:</strong> {selectedOrder.cancellation_reason}
               </div>
             )}
+
+            {/* ✅ TRACKING MANAGEMENT SECTION */}
+            <div className="tracking-management-section">
+              <div className="tracking-management-title"><FaTruck /> Shipping & Tracking</div>
+              <div className="tracking-mgmt-grid">
+                <div className="tracking-mgmt-field">
+                  <label>Tracking Number</label>
+                  <input
+                    type="text"
+                    value={trackingInfo.trackingNumber}
+                    onChange={(e) => setTrackingInfo({ ...trackingInfo, trackingNumber: e.target.value })}
+                    placeholder="e.g. DTDC123456"
+                  />
+                </div>
+                <div className="tracking-mgmt-field">
+                  <label>Shipping Partner</label>
+                  <input
+                    type="text"
+                    value={trackingInfo.shippingPartner}
+                    onChange={(e) => setTrackingInfo({ ...trackingInfo, shippingPartner: e.target.value })}
+                    placeholder="e.g. DTDC, Bluedart, Delhivery"
+                  />
+                </div>
+              </div>
+              <div className="tracking-mgmt-field">
+                <label>Estimated Delivery Date</label>
+                <input
+                  type="date"
+                  value={trackingInfo.estimatedDelivery}
+                  onChange={(e) => setTrackingInfo({ ...trackingInfo, estimatedDelivery: e.target.value })}
+                />
+              </div>
+              <button
+                className="btn-primary"
+                onClick={saveTrackingInfo}
+                disabled={trackingSaving}
+                style={{ width: '100%', padding: '10px', fontSize: '14px', marginTop: '8px' }}
+              >
+                {trackingSaving ? (<><FaSync className="spin-icon" /> Saving...</>) : (<><FaSave /> Save Shipping Info</>)}
+              </button>
+
+              {/* ✅ Status History */}
+              {selectedOrder.trackingHistory && selectedOrder.trackingHistory.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <div className="tracking-management-title" style={{ fontSize: '13px' }}>📋 Status History</div>
+                  <div className="status-history-list">
+                    {selectedOrder.trackingHistory.slice().reverse().map((h, idx) => (
+                      <div className="status-history-item" key={idx}>
+                        <span className="status-history-dot" style={{ background: h.status === 'cancelled' ? '#ef4444' : h.status === 'delivered' ? '#22c55e' : 'var(--pf-gold, #C49A45)' }}></span>
+                        <span className="status-history-label">{h.status?.replace('_', ' ')}</span>
+                        <span className="status-history-time">{new Date(h.timestamp).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

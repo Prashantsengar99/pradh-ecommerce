@@ -1,0 +1,881 @@
+/* =====================================================================
+   ORDER TRACKING — Warm Editorial Luxury Edition
+   Premium tracking timeline + order cards — ENHANCED with animations
+   ===================================================================== */
+
+/* ============================================
+   TRACKING MODAL (Dashboard)
+   ============================================ */
+.tracking-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 21, 18, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: trackOverlayIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+}
+
+@keyframes trackOverlayIn {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to { opacity: 1; backdrop-filter: blur(10px); }
+}
+
+.tracking-modal-content {
+  background: var(--pf-white, #FFFFFF);
+  border-radius: 24px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px;
+  position: relative;
+  box-shadow: 0 25px 80px rgba(57, 37, 27, 0.30),
+              0 0 0 1px rgba(196, 154, 69, 0.15),
+              0 0 60px rgba(196, 154, 69, 0.08);
+  animation: trackModalIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes trackModalIn {
+  0% { opacity: 0; transform: translateY(60px) scale(0.88); }
+  60% { opacity: 1; transform: translateY(-8px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tracking-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(196, 154, 69, 0.15);
+  position: relative;
+}
+
+/* ✅ Animated gold underline sweep on header */
+.tracking-modal-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--pf-gold, #C49A45), var(--pf-gold-deep, #A67C2E));
+  border-radius: 2px;
+  animation: headerLineGrow 1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+@keyframes headerLineGrow {
+  from { width: 0; }
+  to { width: 60px; }
+}
+
+.tracking-modal-header h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--pf-chocolate, #39251B);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* ✅ Truck icon bounces gently */
+.tracking-modal-header h2 svg,
+.tracking-modal-header h2 i {
+  color: var(--pf-gold-deep, #A67C2E);
+  animation: truckBounce 2s ease-in-out infinite;
+}
+
+@keyframes truckBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.tracking-modal-header p {
+  font-size: 13px;
+  color: var(--pf-text-muted, #8A7560);
+  margin: 4px 0 0;
+}
+
+/* ============================================
+   TRACKING SUMMARY — Staggered fade-in
+   ============================================ */
+.tracking-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--pf-cream, #F8F5EF);
+  border-radius: 12px;
+  border: 1px solid rgba(196, 154, 69, 0.12);
+  animation: summarySlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+@keyframes summarySlideIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tracking-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tracking-summary-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pf-text-muted, #8A7560);
+}
+
+.tracking-summary-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pf-chocolate, #39251B);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* ============================================
+   SHIPPING INFO BAR — Slide in with glow
+   ============================================ */
+.tracking-shipping-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: rgba(196, 154, 69, 0.06);
+  border: 1px solid rgba(196, 154, 69, 0.15);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  animation: shippingSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ✅ Shimmer sweep on shipping bar */
+.tracking-shipping-info::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(196, 154, 69, 0.08), transparent);
+  animation: shippingShimmer 3s infinite 1s;
+}
+
+@keyframes shippingShimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+@keyframes shippingSlideIn {
+  from { opacity: 0; transform: translateX(-15px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.tracking-shipping-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--pf-text-soft, #5C4A3D);
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+
+.tracking-shipping-item strong {
+  color: var(--pf-gold-deep, #A67C2E);
+}
+
+.tracking-shipping-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(196, 154, 69, 0.25);
+}
+
+/* ============================================
+   PROGRESS BAR — Animated fill + glow
+   ============================================ */
+.tracking-progress-bar {
+  height: 8px;
+  background: var(--pf-beige, #E9DFD1);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(57, 37, 27, 0.10);
+}
+
+.tracking-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--pf-gold, #C49A45), var(--pf-gold-deep, #A67C2E), var(--pf-gold, #C49A45));
+  background-size: 200% 100%;
+  border-radius: 999px;
+  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: progressShine 3s linear infinite;
+  box-shadow: 0 0 12px rgba(196, 154, 69, 0.40);
+  position: relative;
+}
+
+/* ✅ Moving shine on progress bar */
+.tracking-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  background-size: 50% 100%;
+  animation: progressSweep 2s linear infinite;
+}
+
+@keyframes progressShine {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes progressSweep {
+  0% { background-position: -50% 0; }
+  100% { background-position: 150% 0; }
+}
+
+/* ============================================
+   TIMELINE — Vertical Step-by-Step with animations
+   ============================================ */
+.tracking-timeline {
+  position: relative;
+  padding-left: 8px;
+}
+
+/* ✅ FIX: Line removed — was looking bad. Dots are enough for timeline */
+.tracking-timeline::before {
+  display: none;
+}
+
+@keyframes lineDraw {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.tracking-step {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 28px;
+  position: relative;
+  opacity: 0;
+  animation: stepFadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ✅ Staggered fade-in for each step */
+.tracking-step:nth-child(1) { animation-delay: 0.5s; }
+.tracking-step:nth-child(2) { animation-delay: 0.6s; }
+.tracking-step:nth-child(3) { animation-delay: 0.7s; }
+.tracking-step:nth-child(4) { animation-delay: 0.8s; }
+.tracking-step:nth-child(5) { animation-delay: 0.9s; }
+.tracking-step:nth-child(6) { animation-delay: 1.0s; }
+
+@keyframes stepFadeIn {
+  from { opacity: 0; transform: translateX(-15px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.tracking-step:last-child {
+  padding-bottom: 0;
+}
+
+/* Step dot/icon */
+.step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  z-index: 1;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  background: var(--pf-beige, #E9DFD1);
+  color: var(--pf-text-muted, #8A7560);
+  border: 2px solid rgba(57, 37, 27, 0.06);
+}
+
+/* Completed step — gold with pop animation */
+.tracking-step.completed .step-dot {
+  background: linear-gradient(135deg, var(--pf-gold, #C49A45), var(--pf-gold-deep, #A67C2E));
+  color: #FFFFFF;
+  border-color: var(--pf-gold-deep, #A67C2E);
+  box-shadow: 0 2px 12px rgba(196, 154, 69, 0.30);
+  animation: stepPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes stepPop {
+  0% { transform: scale(0.5); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* ✅ Checkmark draw animation for completed steps */
+.tracking-step.completed .step-dot svg {
+  animation: checkDraw 0.4s ease 0.1s both;
+}
+
+@keyframes checkDraw {
+  from { opacity: 0; transform: scale(0); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Current step — highlighted with pulse + ring */
+.tracking-step.current .step-dot {
+  background: linear-gradient(135deg, var(--pf-gold-deep, #A67C2E), var(--pf-chocolate, #39251B));
+  color: #FFFFFF;
+  border-color: var(--pf-gold, #C49A45);
+  box-shadow: 0 0 0 4px rgba(196, 154, 69, 0.20),
+              0 4px 16px rgba(196, 154, 69, 0.35);
+  animation: stepPulse 2s infinite;
+}
+
+@keyframes stepPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(196, 154, 69, 0.20),
+                0 4px 16px rgba(196, 154, 69, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(196, 154, 69, 0.08),
+                0 4px 20px rgba(196, 154, 69, 0.50);
+  }
+}
+
+/* Step info */
+.tracking-step-info {
+  flex: 1;
+  padding-top: 4px;
+}
+
+.tracking-step-info h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pf-chocolate, #39251B);
+  margin: 0 0 4px;
+  font-family: 'Inter', sans-serif;
+}
+
+.tracking-step.completed .tracking-step-info h4 {
+  color: var(--pf-chocolate, #39251B);
+}
+
+.tracking-step:not(.completed) .tracking-step-info h4 {
+  color: var(--pf-text-muted, #8A7560);
+}
+
+/* ✅ Current step text has gold accent */
+.tracking-step.current .tracking-step-info h4 {
+  color: var(--pf-gold-deep, #A67C2E);
+  font-weight: 800;
+}
+
+.tracking-step-info p {
+  font-size: 13px;
+  color: var(--pf-text-muted, #8A7560);
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
+
+/* ✅ Current step description is more visible */
+.tracking-step.current .tracking-step-info p {
+  color: var(--pf-text-soft, #5C4A3D);
+  font-weight: 600;
+}
+
+.step-time {
+  font-size: 12px;
+  color: var(--pf-text-muted, #8A7560);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* ✅ Completed step time has subtle gold tint */
+.tracking-step.completed .step-time {
+  color: var(--pf-brown, #8A5A3C);
+}
+
+/* ============================================
+   EXCEPTIONAL STATUS — Animated entrance
+   ============================================ */
+/* ✅ FIX: BIGGER & more prominent — full width red warning */
+.tracking-exceptional {
+  padding: 20px 24px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  animation: exceptionalSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  border-width: 2px;
+  border-style: solid;
+}
+
+@keyframes exceptionalSlideIn {
+  from { opacity: 0; transform: translateX(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* ✅ Subtle shimmer on exceptional status */
+.tracking-exceptional::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  animation: exceptionalShimmer 4s infinite 1s;
+}
+
+@keyframes exceptionalShimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.tracking-exceptional.cancelled {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.30);
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.12);
+}
+
+.tracking-exceptional.return {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.30);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.12);
+}
+
+.tracking-exceptional.refund {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.30);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.12);
+}
+
+.tracking-exceptional.resolved {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.30);
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.12);
+}
+
+.tracking-exceptional-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+  margin-top: 0;
+  animation: iconWobble 1s ease-in-out 0.3s;
+}
+
+@keyframes iconWobble {
+  0% { transform: rotate(0); }
+  25% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+  75% { transform: rotate(-4deg); }
+  100% { transform: rotate(0); }
+}
+
+.tracking-exceptional-content h4 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  font-family: 'Playfair Display', Georgia, serif;
+  position: relative;
+  z-index: 1;
+  letter-spacing: -0.3px;
+}
+
+.tracking-exceptional.cancelled .tracking-exceptional-content h4 { color: #b91c1c; }
+.tracking-exceptional.return .tracking-exceptional-content h4 { color: #b45309; }
+.tracking-exceptional.refund .tracking-exceptional-content h4 { color: #2563eb; }
+.tracking-exceptional.resolved .tracking-exceptional-content h4 { color: #15823f; }
+
+.tracking-exceptional-content p {
+  font-size: 14px;
+  color: var(--pf-text-soft, #5C4A3D);
+  margin: 0 0 4px;
+  position: relative;
+  z-index: 1;
+  line-height: 1.5;
+}
+
+.tracking-exceptional-content .step-time {
+  font-size: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================
+   ORDER ITEMS IN TRACKING — Slide-in rows
+   ============================================ */
+.tracking-items {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(57, 37, 27, 0.08);
+  animation: trackFadeIn 0.5s ease 0.8s both;
+}
+
+.tracking-items-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pf-text-muted, #8A7560);
+  margin-bottom: 12px;
+}
+
+.tracking-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(57, 37, 27, 0.04);
+  transition: background 0.2s ease;
+  border-radius: 6px;
+}
+
+.tracking-item-row:hover {
+  background: rgba(196, 154, 69, 0.04);
+  padding-left: 8px;
+}
+
+.tracking-item-row:last-child {
+  border-bottom: none;
+}
+
+.tracking-item-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--pf-cream, #F8F5EF);
+  border: 1px solid rgba(196, 154, 69, 0.10);
+  transition: transform 0.3s ease;
+}
+
+.tracking-item-row:hover .tracking-item-img {
+  transform: scale(1.1);
+  border-color: var(--pf-gold, #C49A45);
+}
+
+.tracking-item-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pf-chocolate, #39251B);
+}
+
+.tracking-item-qty {
+  font-size: 12px;
+  color: var(--pf-text-muted, #8A7560);
+}
+
+.tracking-item-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pf-gold-deep, #A67C2E);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* ============================================
+   AUTO-REFRESH INDICATOR — Live pulse
+   ============================================ */
+.tracking-auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--pf-text-muted, #8A7560);
+  margin-bottom: 16px;
+  font-weight: 600;
+  animation: trackFadeIn 0.4s ease 0.2s both;
+}
+
+.tracking-auto-refresh .refresh-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: livePulse 1.5s infinite;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.40);
+}
+
+@keyframes livePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.40);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.7);
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.60);
+  }
+}
+
+/* ============================================
+   ADMIN ORDER MANAGEMENT — Search + Filter
+   ============================================ */
+.admin-order-search {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  animation: trackFadeIn 0.3s ease;
+}
+
+.admin-search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 14px;
+  border: 1px solid rgba(57, 37, 27, 0.18);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: var(--pf-cream, #F8F5EF);
+  color: var(--pf-chocolate, #39251B);
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+}
+
+.admin-search-input:focus {
+  border-color: var(--pf-gold, #C49A45);
+  box-shadow: 0 0 0 3px rgba(196, 154, 69, 0.12);
+  background: #FFFFFF;
+}
+
+.admin-search-input::placeholder {
+  color: var(--pf-text-muted, #8A7560);
+}
+
+.admin-filter-select {
+  padding: 10px 14px;
+  border: 1px solid rgba(57, 37, 27, 0.18);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: var(--pf-cream, #F8F5EF);
+  color: var(--pf-chocolate, #39251B);
+  outline: none;
+  cursor: pointer;
+  min-width: 140px;
+  transition: border-color 0.3s;
+}
+
+.admin-filter-select:hover {
+  border-color: var(--pf-gold, #C49A45);
+}
+
+/* ============================================
+   ADMIN TRACKING MANAGEMENT MODAL
+   ============================================ */
+.tracking-management-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--pf-cream, #F8F5EF);
+  border-radius: 12px;
+  border: 1px solid rgba(57, 37, 27, 0.06);
+  animation: trackFadeIn 0.4s ease 0.2s both;
+}
+
+.tracking-management-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pf-chocolate, #39251B);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tracking-management-title svg,
+.tracking-management-title i {
+  color: var(--pf-gold-deep, #A67C2E);
+}
+
+.tracking-mgmt-field {
+  margin-bottom: 12px;
+}
+
+.tracking-mgmt-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pf-text-muted, #8A7560);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.tracking-mgmt-field input,
+.tracking-mgmt-field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(57, 37, 27, 0.15);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: var(--pf-white, #FFFFFF);
+  color: var(--pf-chocolate, #39251B);
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.tracking-mgmt-field input:focus,
+.tracking-mgmt-field select:focus {
+  border-color: var(--pf-gold, #C49A45);
+  box-shadow: 0 0 0 3px rgba(196, 154, 69, 0.10);
+}
+
+.tracking-mgmt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Status history in admin */
+.status-history-list {
+  margin-top: 12px;
+}
+
+.status-history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(57, 37, 27, 0.04);
+  font-size: 13px;
+  transition: padding 0.2s ease;
+}
+
+.status-history-item:hover {
+  padding-left: 6px;
+}
+
+.status-history-item:last-child {
+  border-bottom: none;
+}
+
+.status-history-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: dotPop 0.3s ease;
+}
+
+@keyframes dotPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+.status-history-label {
+  font-weight: 600;
+  color: var(--pf-chocolate, #39251B);
+}
+
+.status-history-time {
+  margin-left: auto;
+  color: var(--pf-text-muted, #8A7560);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 500px) {
+  .tracking-modal-content {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .tracking-modal-header h2 {
+    font-size: 18px;
+  }
+
+  .tracking-summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .tracking-shipping-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .tracking-shipping-divider {
+    display: none;
+  }
+
+  .tracking-mgmt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .step-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .tracking-step-info h4 {
+    font-size: 14px;
+  }
+
+  .tracking-step-info p {
+    font-size: 12px;
+  }
+
+  .tracking-progress-bar {
+    height: 6px;
+  }
+}
+
+@media (max-width: 360px) {
+  .tracking-modal-content {
+    padding: 16px 12px;
+  }
+
+  .tracking-summary {
+    padding: 12px;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY — Reduced motion
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

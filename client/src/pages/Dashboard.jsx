@@ -13,6 +13,7 @@ import {
 import toast from 'react-hot-toast';
 import html2pdf from 'html2pdf.js';
 import '/src/styles/dashboard.css';
+import '/src/styles/tracking.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -119,7 +120,7 @@ const Dashboard = () => {
     return () => { document.body.style.overflow = 'unset'; };
   }, [trackingOrder, invoiceOrder, cancelOrder, returnOrder]);
 
-  // ============ TRACKING ============
+  // ============ TRACKING (ENHANCED with auto-refresh) ============
   useEffect(() => {
     if (!trackingOrder) {
       setTrackingData(null);
@@ -133,6 +134,9 @@ const Dashboard = () => {
       } catch (err) { console.warn('Tracking fetch failed:', err); }
     };
     fetchTracking();
+    // ✅ Auto-refresh every 15 seconds for real-time updates
+    const interval = setInterval(fetchTracking, 15000);
+    return () => clearInterval(interval);
   }, [trackingOrder]);
 
   // ============ CANCEL ORDER ============
@@ -869,16 +873,16 @@ const Dashboard = () => {
           <div className="tracking-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="tracking-modal-header">
               <div>
-                <h2><FaTruck style={{ color: 'var(--primary)' }} /> Track Your Order</h2>
+                <h2><FaTruck style={{ color: 'var(--pf-gold-deep, #A67C2E)' }} /> Track Your Order</h2>
                 <p>Live updates on your delivery</p>
               </div>
               <button
                 className="return-modal-close"
                 onClick={() => setTrackingOrder(null)}
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#fff', width: '36px', height: '36px', borderRadius: '50%',
+                  background: 'var(--pf-cream, #F8F5EF)',
+                  border: '1px solid var(--pf-border, rgba(57, 37, 27, 0.10))',
+                  color: 'var(--pf-chocolate, #39251B)', width: '36px', height: '36px', borderRadius: '50%',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
@@ -886,6 +890,13 @@ const Dashboard = () => {
               </button>
             </div>
 
+            {/* ✅ Auto-refresh indicator */}
+            <div className="tracking-auto-refresh">
+              <span className="refresh-dot"></span>
+              Auto-updating every 15 seconds
+            </div>
+
+            {/* ✅ Order Summary */}
             <div className="tracking-summary">
               <div className="tracking-summary-item">
                 <span className="tracking-summary-label">Order ID</span>
@@ -899,37 +910,138 @@ const Dashboard = () => {
               </div>
               <div className="tracking-summary-item">
                 <span className="tracking-summary-label">Total</span>
-                <span className="tracking-summary-value" style={{ color: 'var(--primary)' }}>
+                <span className="tracking-summary-value" style={{ color: 'var(--pf-gold-deep, #A67C2E)' }}>
                   ₹{(parseFloat(trackingOrder.total) || 0).toFixed(2)}
                 </span>
               </div>
               <div className="tracking-summary-item">
-                <span className="tracking-summary-label">Status</span>
-                <span className="tracking-summary-value" style={{ textTransform: 'capitalize' }}>
-                  {getStatusIcon(trackingOrder.status)} {trackingOrder.status?.replace('_', ' ')}
+                <span className="tracking-summary-label">Payment</span>
+                <span className="tracking-summary-value">
+                  {trackingData?.order?.paymentMethod || trackingOrder.customer?.paymentMethod || 'N/A'}
                 </span>
               </div>
             </div>
 
             {trackingData ? (
-              <div className="tracking-timeline">
-                {trackingData.timeline.map((step, idx) => (
-                  <div key={idx} className={`tracking-step ${step.completed ? 'completed' : ''}`}>
-                    <div className="step-dot">
-                      {step.completed ? <FaCheckCircle /> : <FaBoxOpen />}
-                    </div>
-                    <div className="tracking-step-info">
-                      <h4>{step.status}</h4>
-                      <p>{step.description}</p>
-                      {step.time && <span className="step-time">{new Date(step.time).toLocaleString('en-IN')}</span>}
+              (() => {
+                // ✅ FIX: Fallback check — agar backend isExceptional return nahi kare
+                // toh order status se direct check karo
+                const EXCEPTIONAL_STATUSES = ['cancelled', 'return_requested', 'returned', 'refund_initiated', 'refunded', 'rejected'];
+                const isExceptional = trackingData.isExceptional || EXCEPTIONAL_STATUSES.includes(trackingOrder.status);
+
+                // ✅ Fallback: agar backend se exceptionalStatus nahi aaya, toh order status se banao
+                const exceptionalStatus = trackingData.exceptionalStatus || (isExceptional ? {
+                  status: trackingOrder.status?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                  statusKey: trackingOrder.status,
+                  description: trackingOrder.status === 'cancelled' ? 'This order has been cancelled.' :
+                    trackingOrder.status === 'return_requested' ? 'Return request submitted.' :
+                    trackingOrder.status === 'returned' ? 'Product returned successfully.' :
+                    trackingOrder.status === 'refund_initiated' ? 'Refund process started.' :
+                    trackingOrder.status === 'refunded' ? 'Refund completed successfully.' : 'Order status updated.',
+                  reason: trackingOrder.cancellation_reason || null,
+                  time: trackingOrder.cancelled_at || trackingOrder.date || trackingOrder.createdAt,
+                } : null);
+
+                return (
+              <>
+                {/* ✅ Shipping Info Bar */}
+                {(trackingData.trackingNumber || trackingData.shippingPartner || trackingData.estimatedDelivery) && (
+                  <div className="tracking-shipping-info">
+                    {trackingData.shippingPartner && (
+                      <div className="tracking-shipping-item">
+                        📦 <strong>{trackingData.shippingPartner}</strong>
+                      </div>
+                    )}
+                    {trackingData.trackingNumber && (
+                      <div className="tracking-shipping-item">
+                        🔖 Tracking: <strong>{trackingData.trackingNumber}</strong>
+                      </div>
+                    )}
+                    {trackingData.estimatedDelivery && (
+                      <div className="tracking-shipping-item">
+                        📅 ETA: <strong>{new Date(trackingData.estimatedDelivery).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ✅ Exceptional Status (Cancelled/Return/Refund) — with fallback */}
+                {isExceptional && exceptionalStatus && (
+                  <div className={`tracking-exceptional ${
+                    exceptionalStatus.statusKey === 'cancelled' ? 'cancelled' :
+                    exceptionalStatus.statusKey === 'refunded' || exceptionalStatus.statusKey === 'rejected' ? 'resolved' :
+                    exceptionalStatus.statusKey?.includes('refund') ? 'refund' : 'return'
+                  }`}>
+                    <div className="tracking-exceptional-icon">{getStatusIcon(exceptionalStatus.statusKey)}</div>
+                    <div className="tracking-exceptional-content">
+                      <h4>{exceptionalStatus.status}</h4>
+                      <p>{exceptionalStatus.description}</p>
+                      {exceptionalStatus.reason && (
+                        <p style={{ marginTop: '4px' }}><strong>Reason:</strong> {exceptionalStatus.reason}</p>
+                      )}
+                      {exceptionalStatus.time && (
+                        <span className="step-time">{new Date(exceptionalStatus.time).toLocaleString('en-IN')}</span>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* ✅ Progress Bar (only for normal delivery flow) */}
+                {!isExceptional && (
+                  <div className="tracking-progress-bar">
+                    <div className="tracking-progress-fill" style={{ width: `${trackingData.progress || 0}%` }}></div>
+                  </div>
+                )}
+
+                {/* ✅ Enhanced Timeline (only for normal delivery) */}
+                {!isExceptional && trackingData.timeline && (
+                  <div className="tracking-timeline">
+                    {trackingData.timeline.map((step, idx) => (
+                      <div
+                        key={idx}
+                        className={`tracking-step ${step.completed ? 'completed' : ''} ${step.current ? 'current' : ''}`}
+                      >
+                        <div className="step-dot">
+                          {step.completed ? <FaCheckCircle /> : step.current ? <FaBoxOpen /> : <FaBox />}
+                        </div>
+                        <div className="tracking-step-info">
+                          <h4>{step.status}</h4>
+                          <p>{step.description}</p>
+                          {step.time && (
+                            <span className="step-time">
+                              {new Date(step.time).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ✅ Order Items in Tracking */}
+                <div className="tracking-items">
+                  <div className="tracking-items-title">Order Items</div>
+                  {(trackingData.order?.items || trackingOrder.items || []).map((item, idx) => (
+                    <div className="tracking-item-row" key={idx}>
+                      <img
+                        src={item.image || '/product1.jpeg'}
+                        alt={item.name}
+                        className="tracking-item-img"
+                        onError={(e) => (e.target.src = '/product1.jpeg')}
+                      />
+                      <div className="tracking-item-name">{item.name}</div>
+                      <div className="tracking-item-qty">×{item.quantity || 1}</div>
+                      <div className="tracking-item-price">₹{item.price}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+                );
+              })()
             ) : (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <FaSpinner className="fa-spin" style={{ fontSize: '24px', color: 'var(--primary)' }} />
-                <p style={{ marginTop: '10px', color: 'var(--text-muted)' }}>Loading tracking info...</p>
+                <FaSpinner className="fa-spin" style={{ fontSize: '24px', color: 'var(--pf-gold-deep, #A67C2E)' }} />
+                <p style={{ marginTop: '10px', color: 'var(--pf-text-muted, #8A7560)' }}>Loading tracking info...</p>
               </div>
             )}
           </div>

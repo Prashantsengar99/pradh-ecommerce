@@ -19,7 +19,7 @@ const USPS = [
   { icon: '🌿', title: '100% Natural', desc: 'Pure desi ingredients, no chemicals or preservatives.' },
   { icon: '🔥', title: 'Traditional Roasting', desc: 'Slow sand-roasting preserves every nutrient.' },
   { icon: '💪', title: 'Muscle Recovery', desc: 'Ashwagandha & Shatavari for strength and stamina.' },
-  { icon: '🚚', title: 'Fast Delivery', desc: 'Free shipping on orders above ₹499. Delivered in 3-5 days.' },
+  { icon: '🚚', title: 'Fast Delivery', desc: 'Free shipping on orders above ₹999. Delivered in 3-5 days.' },
 ];
 
 const INGREDIENTS = [
@@ -44,7 +44,7 @@ const TESTIMONIALS = [
 const FAQS = [
   { q: 'Is PRADH Desi Fuel 100% natural?', a: 'Yes! We use only pure desi ingredients — no chemicals, no preservatives, no refined sugar. Every batch is handcrafted with traditional sand-roasting techniques.' },
   { q: 'How do I consume Desi Fuel?', a: 'Mix 2 tablespoons with 250ml warm milk. Best consumed in the morning or after your workout. You can also add it to smoothies or protein shakes.' },
-  { q: 'How long does delivery take?', a: 'Orders are dispatched within 24-48 hours. Delivery takes 3-7 business days depending on your location. Free shipping on orders above ₹499.' },
+  { q: 'How long does delivery take?', a: 'Orders are dispatched within 24-48 hours. Delivery takes 3-7 business days depending on your location. Free shipping on orders above ₹999.' },
   { q: 'Can I return the product?', a: 'We accept returns only for products damaged during transit. Please share unboxing video proof within 24 hours of delivery.' },
   { q: 'Is it safe for children and elderly?', a: 'Absolutely! PRADH Desi Fuel is made from natural ingredients. Children above 2 years and elderly can consume it. For specific health conditions, consult your doctor.' },
   { q: 'What makes PRADH different?', a: 'Traditional sand-roasting, zero refined sugar, no whey concentrates, and 100% honest ingredient disclosure. We do not cut corners on quality.' },
@@ -352,7 +352,7 @@ const Home = () => {
         <div className="pf-trust-track">
           {[...Array(2)].map((_, i) => (
             <div className="pf-trust-group" key={i}>
-              <span className="pf-trust-item"><span className="pf-trust-ico">🚚</span> Free Shipping Above ₹499</span>
+              <span className="pf-trust-item"><span className="pf-trust-ico">🚚</span> Free Shipping Above ₹999</span>
               <span className="pf-trust-item"><span className="pf-trust-ico">🛡️</span> 100% Secure Payments</span>
               <span className="pf-trust-item"><span className="pf-trust-ico">🌿</span> 100% Natural Ingredients</span>
               <span className="pf-trust-item"><span className="pf-trust-ico">↩️</span> Easy Returns</span>

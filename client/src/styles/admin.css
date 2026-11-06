@@ -285,13 +285,16 @@
   transform: scale(1.15) rotate(-8deg);
 }
 
+/* ✅ FIX: line-height 1.3 + tabular-nums — digits properly aligned */
 .stat-card .stat-value {
   font-family: var(--pf-font-display, 'Playfair Display', serif);
   font-size: 30px;
   font-weight: 800;
   color: var(--pf-chocolate, #39251B);
   letter-spacing: -0.5px;
-  line-height: 1;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 .stat-card .stat-label {
@@ -340,6 +343,7 @@
   white-space: nowrap;
 }
 
+/* ✅ FIX: tabular-nums — table prices properly aligned */
 .table-container td {
   padding: 14px 20px;
   border-bottom: 1px solid var(--pf-border, rgba(57, 37, 27, 0.06));
@@ -348,6 +352,8 @@
   font-size: 14px;
   font-weight: 500;
   transition: background 0.2s var(--pf-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 .table-container tr:last-child td {
@@ -749,10 +755,14 @@
   font-weight: 800;
 }
 
+/* ✅ FIX: tabular-nums + line-height — item prices clear */
 .order-items-list .item-row .item-price {
   color: var(--pf-gold-deep, #A67C2E);
   font-weight: 800;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1.3;
 }
 
 /* ============================================
@@ -951,14 +961,17 @@
 .stat-trend.down    { background: rgba(220, 38, 38, 0.08);  color: #b91c1c; }
 .stat-trend.neutral { background: rgba(138, 117, 96, 0.12); color: var(--pf-text-muted, #8A7560); }
 
+/* ✅ FIX: line-height 1.3 + tabular-nums */
 .stat-value-enhanced {
   font-family: var(--pf-font-display, 'Playfair Display', serif);
   font-size: 30px;
   font-weight: 800;
   color: var(--pf-chocolate, #39251B);
   letter-spacing: -0.5px;
-  line-height: 1;
+  line-height: 1.3;
   margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 .stat-label-enhanced {
@@ -1047,12 +1060,16 @@
   margin-top: 3px;
 }
 
+/* ✅ FIX: tabular-nums + line-height — top values clear */
 .top-value {
   color: var(--pf-gold-deep, #A67C2E);
   font-family: var(--pf-font-body, 'Inter', sans-serif);
   font-weight: 800;
   font-size: 14.5px;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1.3;
 }
 
 /* Activity feed */
@@ -1269,7 +1286,7 @@
   .stat-card { padding: 18px; }
 
   .stat-card .stat-icon { font-size: 26px; margin-bottom: 10px; }
-  .stat-card .stat-value { font-size: 24px; }
+  .stat-card .stat-value { font-size: 24px; line-height: 1.3; }
   .stat-card .stat-label { font-size: 10px; }
 
   .table-container {
@@ -1308,7 +1325,7 @@
   .chart-body { min-height: 220px; }
 
   .stat-card-enhanced { padding: 18px; }
-  .stat-value-enhanced { font-size: 24px; }
+  .stat-value-enhanced { font-size: 24px; line-height: 1.3; }
   .stat-icon-box { width: 42px; height: 42px; font-size: 18px; }
 }
 
@@ -1334,7 +1351,7 @@
 @media (max-width: 360px) {
   .main-content { padding: 12px; }
   .stat-card { padding: 14px; }
-  .stat-card .stat-value { font-size: 22px; }
+  .stat-card .stat-value { font-size: 22px; line-height: 1.3; }
   .stat-card .stat-icon { font-size: 24px; }
   .sidebar { width: 220px; padding: 18px; }
   .nav-item { padding: 10px 14px; font-size: 13px; }

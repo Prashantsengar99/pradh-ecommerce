@@ -91,6 +91,16 @@ const orderSchema = new mongoose.Schema({
   userId: { type: String, default: null },
   cancellation_reason: String,
   cancelled_at: Date,
+  // ✅ TRACKING SYSTEM FIELDS
+  trackingHistory: [{
+    status: String,
+    timestamp: Date,
+    description: String,
+    updatedBy: { type: String, default: 'system' }, // 'admin' | 'system' | 'user'
+  }],
+  trackingNumber: { type: String, default: '' },
+  shippingPartner: { type: String, default: '' },
+  estimatedDelivery: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -891,18 +901,108 @@ app.get('/get-orders', verifyAdminToken, async (req, res) => {
   }
 });
 
-// Admin: change order status (e.g., mark shipped/delivered/cancelled)
+// ✅ VALID STATUS TRANSITIONS — prevent invalid jumps
+const VALID_TRANSITIONS = {
+  'pending': ['confirmed', 'cancelled', 'paid'],
+  'paid': ['confirmed', 'cancelled'],
+  'confirmed': ['packed', 'cancelled'],
+  'packed': ['shipped', 'cancelled'],
+  'shipped': ['out_for_delivery', 'delivered'],
+  'out_for_delivery': ['delivered'],
+  'delivered': ['return_requested'],
+  'return_requested': ['returned', 'rejected'],
+  'returned': ['refund_initiated'],
+  'refund_initiated': ['refunded'],
+  'refunded': [],
+  'cancelled': [],
+  'rejected': [],
+};
+
+// ✅ STATUS DISPLAY INFO
+const STATUS_INFO = {
+  'pending': { label: 'Order Placed', icon: 'fa-box', color: '#C49A45', desc: 'Your order has been placed' },
+  'paid': { label: 'Payment Confirmed', icon: 'fa-credit-card', color: '#22c55e', desc: 'Payment verified successfully' },
+  'confirmed': { label: 'Order Confirmed', icon: 'fa-check-circle', color: '#22c55e', desc: 'We confirmed your order' },
+  'packed': { label: 'Packed', icon: 'fa-box-open', color: '#C49A45', desc: 'Your order is packed and ready' },
+  'shipped': { label: 'Shipped', icon: 'fa-truck', color: '#8A5A3C', desc: 'Your order is on the way! 🚚' },
+  'out_for_delivery': { label: 'Out for Delivery', icon: 'fa-map-pin', color: '#A67C2E', desc: 'Delivery agent is on the way' },
+  'delivered': { label: 'Delivered', icon: 'fa-check-circle', color: '#22c55e', desc: 'Order delivered successfully! 🎉' },
+  'cancelled': { label: 'Cancelled', icon: 'fa-ban', color: '#ef4444', desc: 'Order was cancelled' },
+  'return_requested': { label: 'Return Requested', icon: 'fa-undo', color: '#f59e0b', desc: 'Return request submitted' },
+  'returned': { label: 'Returned', icon: 'fa-undo', color: '#8b5cf6', desc: 'Product returned successfully' },
+  'refund_initiated': { label: 'Refund Initiated', icon: 'fa-money-bill-wave', color: '#3b82f6', desc: 'Refund process started' },
+  'refunded': { label: 'Refunded', icon: 'fa-check-circle', color: '#22c55e', desc: 'Refund completed successfully' },
+  'rejected': { label: 'Return Rejected', icon: 'fa-times', color: '#ef4444', desc: 'Return request rejected' },
+};
+
+// ✅ NORMAL DELIVERY FLOW (for timeline display)
+const DELIVERY_FLOW = ['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'];
+
+// ✅ EXCEPTIONAL STATUSES (shown separately, not in normal timeline)
+const EXCEPTIONAL_STATUSES = ['cancelled', 'return_requested', 'returned', 'refund_initiated', 'refunded', 'rejected'];
+
+// Admin: change order status — ENHANCED with tracking history + validation
 app.put('/api/orders/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, cancellation_reason } = req.body;
+
     const order = await Order.findOne({ id });
     if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
-    if (status) order.status = status;
+
+    // ✅ Validate status transition
+    if (status && status !== order.status) {
+      const allowed = VALID_TRANSITIONS[order.status] || [];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          error: `Cannot change status from "${order.status}" to "${status}". Valid transitions: ${allowed.join(', ') || 'none'}`,
+        });
+      }
+
+      // Add to tracking history
+      const info = STATUS_INFO[status] || { desc: `Status updated to ${status}` };
+      order.trackingHistory.push({
+        status,
+        timestamp: new Date(),
+        description: info.desc,
+        updatedBy: 'admin',
+      });
+      order.status = status;
+    }
+
     if (cancellation_reason) order.cancellation_reason = cancellation_reason;
+    if (status === 'cancelled' && !order.cancelled_at) order.cancelled_at = new Date();
+
     await order.save();
+    console.log(`✅ Order ${id} status → ${order.status} (by admin)`);
     res.json({ success: true, message: 'Order updated!', order });
   } catch (error) {
+    console.error('Order update error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ✅ NEW: Admin update shipping info (tracking number, partner, ETA)
+app.put('/api/orders/:id/tracking', verifyAdminToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { trackingNumber, shippingPartner, estimatedDelivery } = req.body;
+
+    const order = await Order.findOne({ id });
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+
+    if (trackingNumber !== undefined) order.trackingNumber = trackingNumber.trim();
+    if (shippingPartner !== undefined) order.shippingPartner = shippingPartner.trim();
+    if (estimatedDelivery !== undefined) {
+      order.estimatedDelivery = estimatedDelivery ? new Date(estimatedDelivery) : null;
+    }
+
+    await order.save();
+    console.log(`✅ Order ${id} shipping info updated: ${trackingNumber} / ${shippingPartner}`);
+    res.json({ success: true, message: 'Shipping info updated!', order });
+  } catch (error) {
+    console.error('Shipping update error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1692,6 +1792,7 @@ app.get('/api/invoice/:orderId', async (req, res) => {
 // ============================================
 // ORDER TRACKING API
 // ============================================
+// ✅ ENHANCED ORDER TRACKING — with full tracking history, shipping info
 app.get('/api/order/track/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -1700,68 +1801,87 @@ app.get('/api/order/track/:orderId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    const timeline = [];
-    timeline.push({
-      status: 'Order Placed',
-      description: 'Your order has been confirmed',
-      time: order.createdAt || order.date,
-      icon: 'fa-box',
-      color: '#facc15',
-      completed: true,
-    });
-    timeline.push({
-      status: 'Payment Confirmed',
-      description: 'Payment has been verified',
-      time: order.payment_id ? order.date : null,
-      icon: 'fa-credit-card',
-      color: '#22c55e',
-      completed: !!order.payment_id,
-    });
-    timeline.push({
-      status: 'Processing',
-      description: 'Your order is being prepared',
-      time: order.status === 'shipped' || order.status === 'delivered' ? order.date : null,
-      icon: 'fa-cogs',
-      color: '#3b82f6',
-      completed: order.status === 'shipped' || order.status === 'delivered',
-    });
-    timeline.push({
-      status: 'Shipped',
-      description: 'Your order is on the way! 🚚',
-      time: order.status === 'shipped' || order.status === 'delivered' ? order.date : null,
-      icon: 'fa-truck',
-      color: '#8b5cf6',
-      completed: order.status === 'shipped' || order.status === 'delivered',
-    });
-    timeline.push({
-      status: 'Out for Delivery',
-      description: 'Delivery agent is on the way',
-      time: order.status === 'delivered' ? order.date : null,
-      icon: 'fa-map-pin',
-      color: '#f59e0b',
-      completed: order.status === 'delivered',
-    });
-    timeline.push({
-      status: 'Delivered',
-      description: 'Order delivered successfully! 🎉',
-      time: order.status === 'delivered' ? order.date : null,
-      icon: 'fa-check-circle',
-      color: '#22c55e',
-      completed: order.status === 'delivered',
+    // ✅ Build timeline from trackingHistory (if exists) or fall back to status-based
+    const currentStatus = order.status;
+    const isExceptional = EXCEPTIONAL_STATUSES.includes(currentStatus);
+
+    // ✅ If trackingHistory exists, use it; otherwise build from status
+    let historyMap = {};
+    if (order.trackingHistory && order.trackingHistory.length > 0) {
+      order.trackingHistory.forEach((h) => {
+        historyMap[h.status] = { time: h.timestamp, description: h.description, updatedBy: h.updatedBy };
+      });
+    }
+
+    // ✅ Build normal delivery timeline
+    const deliveryTimeline = DELIVERY_FLOW.map((statusKey) => {
+      const info = STATUS_INFO[statusKey];
+      const history = historyMap[statusKey];
+      const isCompleted = DELIVERY_FLOW.indexOf(currentStatus) >= DELIVERY_FLOW.indexOf(statusKey);
+      const isCurrent = statusKey === currentStatus;
+      return {
+        status: info.label,
+        statusKey,
+        description: info.desc,
+        time: history ? history.time : (isCompleted ? (order.trackingHistory?.[0]?.timestamp || order.createdAt || order.date) : null),
+        icon: info.icon,
+        color: info.color,
+        completed: isCompleted,
+        current: isCurrent,
+        updatedBy: history ? history.updatedBy : (isCompleted ? 'system' : null),
+      };
     });
 
-    let currentStatusIndex = 0;
-    for (let i = 0; i < timeline.length; i++) {
-      if (!timeline[i].completed) break;
-      currentStatusIndex = i;
+    // ✅ Build exceptional status info (if applicable)
+    let exceptionalStatus = null;
+    if (isExceptional) {
+      const info = STATUS_INFO[currentStatus];
+      const history = historyMap[currentStatus];
+      exceptionalStatus = {
+        status: info.label,
+        statusKey: currentStatus,
+        description: info.desc,
+        time: history ? history.time : (order.cancelled_at || order.updatedAt || order.date),
+        icon: info.icon,
+        color: info.color,
+        reason: order.cancellation_reason || null,
+      };
+    }
+
+    // ✅ Calculate progress
+    let progress = 0;
+    if (!isExceptional) {
+      const currentIdx = DELIVERY_FLOW.indexOf(currentStatus);
+      progress = currentIdx >= 0 ? Math.round(((currentIdx + 1) / DELIVERY_FLOW.length) * 100) : 0;
+    } else {
+      progress = currentStatus === 'delivered' ? 100 : 0;
     }
 
     res.json({
       success: true,
-      order: { id: order.id, status: order.status, total: order.total, date: order.date, items: order.items },
-      timeline,
-      currentStatusIndex,
-      progress: Math.round(((currentStatusIndex + 1) / timeline.length) * 100),
+      order: {
+        id: order.id,
+        status: order.status,
+        statusLabel: STATUS_INFO[order.status]?.label || order.status,
+        total: order.total,
+        date: order.date,
+        items: order.items,
+        customer: order.customer,
+        paymentMethod: order.customer?.paymentMethod || 'N/A',
+        paymentId: order.payment_id || null,
+      },
+      // Shipping info
+      trackingNumber: order.trackingNumber || '',
+      shippingPartner: order.shippingPartner || '',
+      estimatedDelivery: order.estimatedDelivery || null,
+      // Timeline
+      timeline: deliveryTimeline,
+      exceptionalStatus,
+      isExceptional,
+      currentStatusIndex: DELIVERY_FLOW.indexOf(currentStatus),
+      progress,
+      // Full history
+      trackingHistory: order.trackingHistory || [],
     });
   } catch (error) {
     console.error('Error tracking order:', error);

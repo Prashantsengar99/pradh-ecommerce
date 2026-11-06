@@ -1,11 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaSearch, FaShoppingCart, FaUser, FaHome, FaBox, FaLeaf, FaEnvelope, FaShoppingBag, FaTimes } from 'react-icons/fa';
+import { FaSearch, FaShoppingCart, FaUser, FaHome, FaBox, FaLeaf, FaEnvelope, FaShoppingBag, FaTimes, FaMoon, FaSun } from 'react-icons/fa';
 import { apiFetch } from '../../services/api';
 import '../../styles/navbar.css';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
+  // ✅ Dark Mode toggle (testing — easy to remove)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('pradh_dark') === 'true');
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('pradh_dark', String(darkMode));
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode(!darkMode);
   const [cartCount, setCartCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [allProducts, setAllProducts] = useState([]);
@@ -269,6 +282,11 @@ const Navbar = () => {
               <span className="icon-label">Cart</span>
               {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
             </Link>
+
+            {/* ✅ Dark Mode Toggle (desktop) */}
+            <button className="darkmode-toggle" onClick={toggleDarkMode} title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'} aria-label="Toggle dark mode">
+              {darkMode ? <FaSun /> : <FaMoon />}
+            </button>
           </div>
         </div>
       </header>
@@ -302,6 +320,17 @@ const Navbar = () => {
           </span>
           <span className="bottom-nav-label">Cart</span>
         </Link>
+
+        {/* ✅ Dark Mode Toggle (mobile bottom nav) */}
+        <button
+          className="bottom-nav-item"
+          onClick={toggleDarkMode}
+          title={darkMode ? 'Light Mode' : 'Dark Mode'}
+          style={{ border: 'none', background: 'transparent' }}
+        >
+          <span className="bottom-nav-icon">{darkMode ? <FaSun /> : <FaMoon />}</span>
+          <span className="bottom-nav-label">{darkMode ? 'Light' : 'Dark'}</span>
+        </button>
       </nav>
     </>
   );

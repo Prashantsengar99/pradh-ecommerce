@@ -269,15 +269,17 @@ body:has(.dashboard-wrapper) {
   min-width: 0;
 }
 
-/* Stat value — chocolate Playfair, NOT white */
+/* ✅ FIX: Inter font (NOT Playfair) for numbers — clean, simple, visible */
 .stat-info .stat-value {
-  font-family: var(--pf-font-display, 'Playfair Display', serif);
+  font-family: var(--pf-font-body, 'Inter', sans-serif);
   color: var(--pf-chocolate, #39251B);
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 800;
-  line-height: 1;
-  letter-spacing: -1px;
+  line-height: 1.3;
+  letter-spacing: -0.5px;
   display: block;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 .stat-info .stat-label {
@@ -496,7 +498,7 @@ body:has(.dashboard-wrapper) {
 }
 
 /* ============================================
-   ORDERS LIST
+   ORDERS LIST — with staggered animation
    ============================================ */
 .orders-list {
   display: flex;
@@ -642,12 +644,16 @@ body:has(.dashboard-wrapper) {
   font-weight: 500;
 }
 
+/* ✅ FIX: tabular-nums — sab digits same width, properly aligned */
 .order-item-price {
   color: var(--pf-gold-deep, #A67C2E);
   font-family: var(--pf-font-body, 'Inter', sans-serif);
   font-weight: 800;
   font-size: 15px;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1.3;
 }
 
 .order-footer {
@@ -667,13 +673,17 @@ body:has(.dashboard-wrapper) {
   font-weight: 600;
 }
 
+/* ✅ FIX: tabular-nums + line-height — price ab properly dikhega */
 .order-total strong {
-  font-family: var(--pf-font-display, 'Playfair Display', serif);
+  font-family: var(--pf-font-body, 'Inter', sans-serif);
   color: var(--pf-chocolate, #39251B);
   font-size: 20px;
   font-weight: 800;
   margin-left: 6px;
   letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1.3;
 }
 
 .order-buttons {
@@ -813,6 +823,7 @@ body:has(.dashboard-wrapper) {
   overflow: hidden;
 }
 
+/* ✅ FIX: tabular-nums + line-height — price clear & visible */
 .wishlist-price {
   color: var(--pf-gold-deep, #A67C2E);
   font-family: var(--pf-font-body, 'Inter', sans-serif);
@@ -820,6 +831,9 @@ body:has(.dashboard-wrapper) {
   font-weight: 800;
   margin-bottom: 12px;
   letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1.3;
 }
 
 .wishlist-actions {
@@ -1341,10 +1355,13 @@ body:has(.dashboard-wrapper) {
   font-weight: 500;
 }
 
+/* ✅ FIX: tabular-nums — invoice prices properly aligned */
 .invoice-table td:last-child {
   text-align: right;
   font-weight: 800;
   color: var(--pf-chocolate, #39251B);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 .invoice-table td.center { text-align: center; }
@@ -1388,15 +1405,19 @@ body:has(.dashboard-wrapper) {
 
 .total-row.discount { color: #15823f; }
 
+/* ✅ FIX: Inter font + tabular-nums + line-height — grand total clear */
 .total-row.grand {
   border-top: 2px solid var(--pf-chocolate, #39251B);
   margin-top: 8px;
   padding-top: 12px;
-  font-family: var(--pf-font-display, 'Playfair Display', serif);
+  font-family: var(--pf-font-body, 'Inter', sans-serif);
   font-size: 20px;
   font-weight: 800;
   color: var(--pf-chocolate, #39251B);
   letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1.3;
 }
 
 .total-row.grand .amount {
@@ -1845,7 +1866,7 @@ body:has(.dashboard-wrapper) {
     font-size: 22px;
   }
 
-  .stat-info .stat-value { font-size: 24px; }
+  .stat-info .stat-value { font-size: 24px; line-height: 1.3; }
   .stat-info .stat-label { font-size: 10px; }
 
   .stat-arrow { display: none; }
@@ -2025,7 +2046,7 @@ body:has(.dashboard-wrapper) {
 
   .stat-card { padding: 14px; gap: 10px; }
   .stat-icon { width: 44px; height: 44px; font-size: 20px; }
-  .stat-info .stat-value { font-size: 22px; }
+  .stat-info .stat-value { font-size: 22px; line-height: 1.3; }
 
   .order-card { padding: 14px 12px; }
   .order-item-name { font-size: 13px; }
@@ -2089,4 +2110,253 @@ body:has(.dashboard-wrapper) {
   .dash-header::before,
   .stat-card::before,
   .skeleton { animation: none !important; }
+}
+
+/* ============================================
+   ✅ ANALYTICS STYLES — was missing, added with tabular-nums
+   ============================================ */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.analytics-card {
+  background: var(--pf-white, #FFFFFF);
+  border: 1px solid var(--pf-border, rgba(57, 37, 27, 0.10));
+  border-radius: var(--pf-radius, 16px);
+  padding: 22px;
+  box-shadow: var(--pf-shadow-sm, 0 2px 8px rgba(57, 37, 27, 0.06));
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  animation: dashCardSlideIn 0.4s ease both;
+}
+
+.analytics-card:nth-child(1) { animation-delay: 0.1s; }
+.analytics-card:nth-child(2) { animation-delay: 0.15s; }
+.analytics-card:nth-child(3) { animation-delay: 0.2s; }
+.analytics-card:nth-child(4) { animation-delay: 0.25s; }
+
+.analytics-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(196, 154, 69, 0.25);
+  box-shadow: 0 14px 36px rgba(57, 37, 27, 0.12);
+}
+
+.analytics-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.analytics-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pf-text-muted, #8A7560);
+}
+
+.analytics-card-icon {
+  font-size: 18px;
+  color: var(--pf-gold-deep, #A67C2E);
+}
+
+/* ✅ FIX: Inter font + tabular-nums — numbers clean & simple */
+.analytics-value {
+  font-family: var(--pf-font-body, 'Inter', sans-serif);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--pf-chocolate, #39251B);
+  letter-spacing: -0.5px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.analytics-change {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 8px;
+  color: var(--pf-text-muted, #8A7560);
+}
+
+.analytics-change.up { color: #15823f; }
+.analytics-change.up svg { font-size: 10px; }
+
+.analytics-chart {
+  grid-column: 1 / -1;
+  background: var(--pf-white, #FFFFFF);
+  border: 1px solid var(--pf-border, rgba(57, 37, 27, 0.10));
+  border-radius: var(--pf-radius, 16px);
+  padding: 22px;
+  box-shadow: var(--pf-shadow-sm, 0 2px 8px rgba(57, 37, 27, 0.06));
+  animation: dashCardSlideIn 0.4s ease 0.3s both;
+}
+
+.chart-header {
+  margin-bottom: 20px;
+}
+
+.chart-title {
+  font-family: var(--pf-font-display, 'Playfair Display', serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pf-chocolate, #39251B);
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 180px;
+  padding-top: 10px;
+}
+
+.chart-bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 40px;
+  background: linear-gradient(180deg, var(--pf-gold, #C49A45), var(--pf-gold-deep, #A67C2E));
+  border-radius: 6px 6px 0 0;
+  transition: height 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  min-height: 4px;
+}
+
+.chart-bar:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 4px 12px rgba(196, 154, 69, 0.30);
+}
+
+.chart-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pf-text-muted, #8A7560);
+}
+
+/* ============================================
+   ✅ STAGGERED CARD ANIMATIONS
+   ============================================ */
+@keyframes dashCardSlideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stat-card {
+  animation: dashCardSlideIn 0.4s ease both;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stat-card:nth-child(2) { animation-delay: 0.10s; }
+.stat-card:nth-child(3) { animation-delay: 0.15s; }
+.stat-card:nth-child(4) { animation-delay: 0.20s; }
+
+.order-card {
+  animation: dashCardSlideIn 0.4s ease both;
+}
+
+.order-card:nth-child(1) { animation-delay: 0.1s; }
+.order-card:nth-child(2) { animation-delay: 0.15s; }
+.order-card:nth-child(3) { animation-delay: 0.2s; }
+.order-card:nth-child(4) { animation-delay: 0.25s; }
+.order-card:nth-child(5) { animation-delay: 0.3s; }
+
+/* ============================================
+   ✅ NOTIFICATIONS LIST
+   ============================================ */
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--pf-white, #FFFFFF);
+  border: 1px solid var(--pf-border, rgba(57, 37, 27, 0.08));
+  border-radius: 12px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  animation: dashCardSlideIn 0.3s ease both;
+}
+
+.notification-item:nth-child(1) { animation-delay: 0.05s; }
+.notification-item:nth-child(2) { animation-delay: 0.10s; }
+.notification-item:nth-child(3) { animation-delay: 0.15s; }
+.notification-item:nth-child(4) { animation-delay: 0.20s; }
+.notification-item:nth-child(5) { animation-delay: 0.25s; }
+
+.notification-item:hover {
+  transform: translateX(4px);
+  border-color: rgba(196, 154, 69, 0.20);
+}
+
+.notification-item.unread {
+  border-left: 3px solid var(--pf-gold, #C49A45);
+  background: rgba(196, 154, 69, 0.03);
+}
+
+.notification-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.notification-icon.order { background: rgba(196, 154, 69, 0.12); color: var(--pf-gold-deep, #A67C2E); }
+.notification-icon.offer { background: rgba(220, 38, 38, 0.08); color: #dc2626; }
+.notification-icon.system { background: rgba(59, 130, 246, 0.08); color: #2563eb; }
+.notification-icon.success { background: rgba(37, 211, 102, 0.08); color: #15823f; }
+
+.notification-content { flex: 1; min-width: 0; }
+
+.notification-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pf-chocolate, #39251B);
+  margin-bottom: 3px;
+}
+
+.notification-message {
+  font-size: 13px;
+  color: var(--pf-text-soft, #5C4A3D);
+  line-height: 1.5;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: var(--pf-text-muted, #8A7560);
+  margin-top: 4px;
+}
+
+.tab-badge {
+  margin-left: auto;
+  background: rgba(220, 38, 38, 0.10);
+  color: #dc2626;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: center;
 }
