@@ -9,9 +9,15 @@ import {
   FaInfoCircle, FaFileInvoiceDollar, FaDownload, FaPrint,
   FaCreditCard, FaPhone, FaEnvelope, FaMapMarkerAlt as FaMapPin,
   FaCheckCircle as FaCheckIcon, FaSpinner, FaBan, FaUndoAlt, FaExclamationTriangle,
+  FaShieldAlt, FaMobileAlt, FaDesktop, FaTabletAlt, FaClock, FaMapMarkedAlt,
+  FaSignOutAlt as FaLogoutOther, FaSyncAlt, FaQuestionCircle,
+  FaEdit, FaHome, FaBuilding, FaTag, FaStar as FaStarIcon, FaCheck, FaGlobe,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import html2pdf from 'html2pdf.js';
+import {
+  formatRelativeTime, getDeviceIcon, formatTimeUntilExpiry, getTokenExpiry,
+} from '../utils/authSecurity';
 import '/src/styles/dashboard.css';
 import '/src/styles/tracking.css';
 
@@ -37,6 +43,38 @@ const Dashboard = () => {
   const [returnReason, setReturnReason] = useState('');
   const [returnLoading, setReturnLoading] = useState(false);
 
+  // 🛡️ NEW: Security / Sessions state
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState(null);
+  const [logoutAllLoading, setLogoutAllLoading] = useState(false);
+  const [sessionExpiryTime, setSessionExpiryTime] = useState(null);
+
+  // 🆕 ADDRESSES state
+  const [addresses, setAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
+  const [addressForm, setAddressForm] = useState({
+    label: 'Home', name: '', phone: '', address: '', city: '', pincode: '',
+  });
+  const [addressSaving, setAddressSaving] = useState(false);
+
+  // 🆕 PREFERENCES state (functional Settings)
+  const [preferences, setPreferences] = useState({
+    emailNotifications: true, smsAlerts: true, marketingEmails: false,
+    orderUpdates: true, language: 'en', theme: 'light',
+  });
+  const [prefsLoading, setPrefsLoading] = useState(false);
+  const [prefsSaving, setPrefsSaving] = useState(false);
+
+  // 🆕 PROFILE EDIT state
+  const [showProfileEditModal, setShowProfileEditModal] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    username: '', email: '', phone: '', address: '', city: '', pincode: '',
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+
   // ============ LOAD USER ============
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -47,6 +85,9 @@ const Dashboard = () => {
     try {
       const savedUser = JSON.parse(localStorage.getItem('user') || 'null');
       if (savedUser) setUser(savedUser);
+      // 🛡️ Track session expiry for display
+      const expiry = getTokenExpiry(token);
+      if (expiry) setSessionExpiryTime(expiry);
     } catch {}
   }, [navigate]);
 
@@ -110,6 +151,245 @@ const Dashboard = () => {
     fetchAll();
   }, []);
 
+  // 🛡️ FETCH SESSIONS — called when Security tab is opened
+  const fetchSessions = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setSessionsLoading(true);
+    try {
+      const res = await apiFetch('/api/auth/sessions', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSessions(data.sessions || []);
+      }
+    } catch (err) {
+      console.warn('Sessions fetch failed:', err);
+      // If 401 (session revoked), force logout
+      if (err?.status === 401) {
+        handleForceLogout('Your session was revoked from another device.');
+      }
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
+  // Auto-fetch sessions when Security tab is opened
+  useEffect(() => {
+    if (activeTab === 'security') {
+      fetchSessions();
+    }
+  }, [activeTab]);
+
+  // 🆕 FETCH ADDRESSES — called when Addresses tab is opened
+  const fetchAddresses = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setAddressesLoading(true);
+    try {
+      const res = await apiFetch('/api/auth/addresses', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAddresses(data.addresses || []);
+      }
+    } catch (err) {
+      console.warn('Addresses fetch failed:', err);
+    } finally {
+      setAddressesLoading(false);
+    }
+  };
+
+  // 🆕 FETCH PREFERENCES — called when Settings tab is opened
+  const fetchPreferences = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setPrefsLoading(true);
+    try {
+      const res = await apiFetch('/api/auth/preferences', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && data.preferences) {
+        setPreferences(data.preferences);
+      }
+    } catch (err) {
+      console.warn('Preferences fetch failed:', err);
+    } finally {
+      setPrefsLoading(false);
+    }
+  };
+
+  // Auto-fetch when Addresses or Settings tab is opened
+  useEffect(() => {
+    if (activeTab === 'addresses') fetchAddresses();
+    if (activeTab === 'settings') fetchPreferences();
+  }, [activeTab]);
+
+  // 🆕 ADDRESS HANDLERS
+  const openAddAddressModal = () => {
+    setEditingAddress(null);
+    setAddressForm({ label: 'Home', name: user?.username || '', phone: user?.phone || '', address: '', city: '', pincode: '' });
+    setShowAddressModal(true);
+  };
+
+  const openEditAddressModal = (addr) => {
+    setEditingAddress(addr);
+    setAddressForm({
+      label: addr.label || 'Home',
+      name: addr.name || '',
+      phone: addr.phone || '',
+      address: addr.address || '',
+      city: addr.city || '',
+      pincode: addr.pincode || '',
+    });
+    setShowAddressModal(true);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!addressForm.name.trim() || !addressForm.phone.trim() || !addressForm.address.trim() || !addressForm.city.trim() || !addressForm.pincode.trim()) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    setAddressSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const url = editingAddress
+        ? `/api/auth/addresses/${editingAddress.id || editingAddress._id}`
+        : '/api/auth/addresses';
+      const method = editingAddress ? 'PUT' : 'POST';
+      const res = await apiFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(addressForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(editingAddress ? 'Address updated! 📍' : 'Address added! 📍');
+        setShowAddressModal(false);
+        setAddresses(data.addresses || []);
+      } else {
+        toast.error(data.message || 'Failed to save address');
+      }
+    } catch (err) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setAddressSaving(false);
+    }
+  };
+
+  const handleDeleteAddress = async (addrId) => {
+    if (!window.confirm('Delete this address?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiFetch(`/api/auth/addresses/${addrId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Address deleted');
+        setAddresses(data.addresses || []);
+      }
+    } catch (err) {
+      toast.error('Failed to delete address');
+    }
+  };
+
+  const handleSetDefaultAddress = async (addrId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiFetch(`/api/auth/addresses/${addrId}/default`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Default address updated ⭐');
+        setAddresses(data.addresses || []);
+      }
+    } catch (err) {
+      toast.error('Failed to set default');
+    }
+  };
+
+  // 🆕 PREFERENCES HANDLER — toggle/save settings
+  const handlePreferenceChange = async (key, value) => {
+    const newPrefs = { ...preferences, [key]: value };
+    setPreferences(newPrefs);
+    setPrefsSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiFetch('/api/auth/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ [key]: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Setting updated ✅', { duration: 1500 });
+      }
+    } catch (err) {
+      // Revert on error
+      setPreferences(preferences);
+      toast.error('Failed to update setting');
+    } finally {
+      setPrefsSaving(false);
+    }
+  };
+
+  // 🆕 PROFILE EDIT HANDLER
+  const openProfileEditModal = () => {
+    setProfileForm({
+      username: user?.username || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      address: user?.address || '',
+      city: user?.city || '',
+      pincode: user?.pincode || '',
+    });
+    setShowProfileEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiFetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(profileForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Profile updated! ✅');
+        setUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setShowProfileEditModal(false);
+      } else {
+        toast.error(data.message || 'Failed to update profile');
+      }
+    } catch (err) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  // 🛡️ Refresh session expiry display every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const expiry = getTokenExpiry(token);
+        setSessionExpiryTime(expiry);
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   // ============ BODY SCROLL LOCK ============
   useEffect(() => {
     if (trackingOrder || invoiceOrder || cancelOrder || returnOrder) {
@@ -134,7 +414,6 @@ const Dashboard = () => {
       } catch (err) { console.warn('Tracking fetch failed:', err); }
     };
     fetchTracking();
-    // ✅ Auto-refresh every 15 seconds for real-time updates
     const interval = setInterval(fetchTracking, 15000);
     return () => clearInterval(interval);
   }, [trackingOrder]);
@@ -276,12 +555,82 @@ const Dashboard = () => {
   };
 
   // ============ HANDLERS ============
-  const handleLogout = () => {
+  // 🛡️ Enhanced logout — calls backend to revoke session
+  const handleLogout = async () => {
     if (!window.confirm('Are you sure you want to logout?')) return;
+    const token = localStorage.getItem('token');
+    // Best-effort: tell backend to revoke session (don't block on failure)
+    try {
+      await apiFetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {}
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('sessionId');
+    localStorage.removeItem('sessionExpiresAt');
     toast.success('Logged out successfully');
     navigate('/');
+  };
+
+  // 🛡️ Force logout (when session revoked from another device)
+  const handleForceLogout = (message) => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('sessionId');
+    localStorage.removeItem('sessionExpiresAt');
+    toast.error(message || 'Session expired. Please login again.');
+    setTimeout(() => navigate('/login?reason=expired'), 1500);
+  };
+
+  // 🛡️ Revoke a specific session (logout from one device)
+  const handleRevokeSession = async (sessionId) => {
+    if (!sessionId) return;
+    if (!window.confirm('Logout from this device? The user on that device will need to login again.')) return;
+    setRevokingSessionId(sessionId);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiFetch(`/api/auth/sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Device logged out successfully 📴');
+        await fetchSessions();
+      } else {
+        toast.error(data.message || 'Failed to revoke session');
+      }
+    } catch (err) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setRevokingSessionId(null);
+    }
+  };
+
+  // 🛡️ Logout from ALL other devices
+  const handleLogoutAllOthers = async () => {
+    if (!window.confirm('Logout from ALL other devices? Only this device will stay logged in.')) return;
+    setLogoutAllLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiFetch('/api/auth/sessions-all-others', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`${data.revokedCount} device(s) logged out 📴`);
+        await fetchSessions();
+      } else {
+        toast.error(data.message || 'Failed to logout other devices');
+      }
+    } catch (err) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setLogoutAllLoading(false);
+    }
   };
 
   const removeFromWishlist = (id) => {
@@ -342,20 +691,19 @@ const Dashboard = () => {
   const analyticsData = getMonthlySpending();
   const maxValue = Math.max(...analyticsData.map((d) => d.value), 1);
 
-  const userAddresses = user && (user.address || user.city || user.pincode) ? [
-    {
-      id: 1, name: 'Primary',
-      address: [user.address, user.city, user.pincode].filter(Boolean).join(', ') || 'Not set',
-      phone: user.phone || 'Not set', default: true,
-    },
-  ] : [];
+  // 🆕 Use fetched addresses (from DB) instead of legacy single address
+  const userAddresses = addresses;
+
+  // 🛡️ Active session count for badge
+  const otherSessionsCount = sessions.filter((s) => !s.isCurrent).length;
 
   const menuItems = [
     { key: 'orders', icon: <FaBox />, label: 'My Orders', badge: orderCount },
     { key: 'wishlist', icon: <FaHeart />, label: 'Wishlist', badge: wishlist.length },
     { key: 'notifications', icon: <FaBell />, label: 'Notifications', badge: unreadCount },
     { key: 'analytics', icon: <FaChartLine />, label: 'Analytics' },
-    { key: 'addresses', icon: <FaMapMarkerAlt />, label: 'Addresses', badge: userAddresses.length },
+    { key: 'addresses', icon: <FaMapMarkerAlt />, label: 'Addresses', badge: userAddresses.length || null },
+    { key: 'security', icon: <FaShieldAlt />, label: 'Security', badge: otherSessionsCount > 0 ? otherSessionsCount : null },
     { key: 'profile', icon: <FaUser />, label: 'Profile' },
     { key: 'settings', icon: <FaCog />, label: 'Settings' },
   ];
@@ -375,6 +723,16 @@ const Dashboard = () => {
   const getNotifIcon = (type) => ({
     order: <FaBox />, offer: <FaGift />, system: <FaInfoCircle />, success: <FaCheckCircle />,
   }[type] || <FaInfoCircle />);
+
+  // 🛡️ Get device icon component for sessions
+  const getDeviceIconComponent = (deviceType) => {
+    switch (deviceType) {
+      case 'Mobile': return <FaMobileAlt />;
+      case 'Tablet': return <FaTabletAlt />;
+      case 'Desktop': return <FaDesktop />;
+      default: return <FaDesktop />;
+    }
+  };
 
   // ✅ Can cancel? Only pending/paid
   const canCancel = (order) => ['pending', 'paid'].includes(order.status);
@@ -404,6 +762,10 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  // 🛡️ Format session expiry for display
+  const token = localStorage.getItem('token');
+  const timeUntilExpiry = token ? formatTimeUntilExpiry(token) : 'Unknown';
 
   return (
     <div className="dashboard-wrapper">
@@ -446,11 +808,11 @@ const Dashboard = () => {
             </div>
             <FaArrowRight className="stat-arrow" />
           </div>
-          <div className="stat-card" onClick={() => setActiveTab('analytics')}>
-            <div className="stat-icon addresses"><FaRupeeSign /></div>
+          <div className="stat-card" onClick={() => setActiveTab('security')}>
+            <div className="stat-icon addresses"><FaShieldAlt /></div>
             <div className="stat-info">
-              <span className="stat-value">₹{totalSpent.toFixed(0)}</span>
-              <span className="stat-label">Total Spent</span>
+              <span className="stat-value">{sessions.length || 0}</span>
+              <span className="stat-label">Active Devices</span>
             </div>
             <FaArrowRight className="stat-arrow" />
           </div>
@@ -468,7 +830,7 @@ const Dashboard = () => {
                 >
                   {item.icon}
                   {item.label}
-                  {item.badge > 0 && <span className="tab-badge">{item.badge}</span>}
+                  {item.badge != null && item.badge > 0 && <span className="tab-badge">{item.badge}</span>}
                 </button>
               ))}
               <div className="sidebar-divider"></div>
@@ -764,33 +1126,209 @@ const Dashboard = () => {
                 <div className="content-header">
                   <div>
                     <h2 className="content-title">My <span>Addresses</span></h2>
-                    <p className="content-subtitle">Manage your delivery addresses</p>
+                    <p className="content-subtitle">Save multiple addresses — select at checkout, no need to type every time</p>
                   </div>
+                  <button onClick={openAddAddressModal} className="content-action">
+                    <FaPlus /> Add Address
+                  </button>
                 </div>
 
-                {userAddresses.length === 0 ? (
+                {addressesLoading ? (
+                  <div className="empty-state">
+                    <FaSpinner className="fa-spin" style={{ fontSize: '32px', color: 'var(--pf-gold-deep)' }} />
+                    <h3>Loading addresses...</h3>
+                  </div>
+                ) : userAddresses.length === 0 ? (
                   <div className="empty-state">
                     <div className="empty-state-icon">📍</div>
-                    <h3>No address saved</h3>
-                    <p>Update your profile to add a delivery address.</p>
-                    <button onClick={() => setActiveTab('profile')} className="content-action">
-                      <FaUser /> Go to Profile
+                    <h3>No addresses saved yet</h3>
+                    <p>Add your Home, Office, or any address — select it at checkout to save time.</p>
+                    <button onClick={openAddAddressModal} className="content-action">
+                      <FaPlus /> Add Your First Address
                     </button>
                   </div>
                 ) : (
-                  <div className="orders-list">
+                  <div className="addresses-grid">
                     {userAddresses.map((addr) => (
-                      <div className={`address-card ${addr.default ? 'default' : ''}`} key={addr.id}>
-                        {addr.default && <span className="default-badge">Default</span>}
+                      <div className={`address-card ${addr.isDefault ? 'default' : ''}`} key={addr.id || addr._id}>
+                        <div className="address-card-header">
+                          <div className="address-label">
+                            {addr.label === 'Home' ? <FaHome /> : addr.label === 'Office' ? <FaBuilding /> : <FaTag />}
+                            <span>{addr.label || 'Address'}</span>
+                          </div>
+                          {addr.isDefault && <span className="default-badge"><FaStar /> Default</span>}
+                        </div>
                         <h4>{addr.name}</h4>
-                        <p>{addr.address}</p>
-                        <p style={{ marginTop: '6px', color: 'var(--primary)', fontWeight: '600' }}>
-                          {addr.phone}
+                        <p className="address-text">{addr.address}</p>
+                        <p className="address-text">{addr.city} — {addr.pincode}</p>
+                        <p className="address-phone">
+                          <FaPhone /> {addr.phone}
                         </p>
+                        <div className="address-actions">
+                          {!addr.isDefault && (
+                            <button
+                              className="addr-btn set-default"
+                              onClick={() => handleSetDefaultAddress(addr.id || addr._id)}
+                              title="Set as default"
+                            >
+                              <FaStar /> Set Default
+                            </button>
+                          )}
+                          <button
+                            className="addr-btn edit"
+                            onClick={() => openEditAddressModal(addr)}
+                            title="Edit address"
+                          >
+                            <FaEdit /> Edit
+                          </button>
+                          <button
+                            className="addr-btn delete"
+                            onClick={() => handleDeleteAddress(addr.id || addr._id)}
+                            title="Delete address"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
+
+                {/* Add Address CTA at bottom if user has addresses */}
+                {userAddresses.length > 0 && (
+                  <div className="add-address-cta" onClick={openAddAddressModal}>
+                    <FaPlus />
+                    <span>Add New Address</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ===== 🛡️ SECURITY / SESSIONS ===== */}
+            {activeTab === 'security' && (
+              <>
+                <div className="content-header">
+                  <div>
+                    <h2 className="content-title">Account <span>Security</span></h2>
+                    <p className="content-subtitle">Manage your active sessions and devices</p>
+                  </div>
+                </div>
+
+                {/* Session info banner */}
+                <div className="security-info-banner">
+                  <div className="security-info-icon"><FaClock /></div>
+                  <div className="security-info-content">
+                    <div className="security-info-title">Session expires in {timeUntilExpiry}</div>
+                    <div className="security-info-subtitle">
+                      For your security, you'll be automatically logged out after 24 hours.
+                      You'll need to login again to continue.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action: Logout all other devices */}
+                {otherSessionsCount > 0 && (
+                  <div className="security-action-bar">
+                    <div className="security-action-info">
+                      <strong>{otherSessionsCount}</strong> other device{otherSessionsCount !== 1 ? 's' : ''} currently active
+                    </div>
+                    <button
+                      className="security-btn-danger"
+                      onClick={handleLogoutAllOthers}
+                      disabled={logoutAllLoading}
+                    >
+                      {logoutAllLoading ? (
+                        <><FaSyncAlt className="fa-spin" /> Logging out...</>
+                      ) : (
+                        <><FaLogoutOther /> Logout All Other Devices</>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Sessions list */}
+                <div className="sessions-header">
+                  <h3>📱 Active Devices ({sessions.length})</h3>
+                  <button
+                    className="security-btn-refresh"
+                    onClick={fetchSessions}
+                    disabled={sessionsLoading}
+                    title="Refresh"
+                  >
+                    <FaSyncAlt className={sessionsLoading ? 'fa-spin' : ''} />
+                  </button>
+                </div>
+
+                {sessionsLoading ? (
+                  <div className="empty-state">
+                    <FaSpinner className="fa-spin" style={{ fontSize: '32px', color: 'var(--pf-gold-deep)' }} />
+                    <h3>Loading sessions...</h3>
+                  </div>
+                ) : sessions.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon">🔒</div>
+                    <h3>No active sessions</h3>
+                    <p>Couldn't load session data. Try refreshing.</p>
+                  </div>
+                ) : (
+                  <div className="sessions-list">
+                    {sessions.map((s) => (
+                      <div
+                        key={s.sessionId}
+                        className={`session-card ${s.isCurrent ? 'current' : ''}`}
+                      >
+                        <div className="session-device-icon">
+                          {getDeviceIconComponent(s.deviceType)}
+                        </div>
+                        <div className="session-info">
+                          <div className="session-header-row">
+                            <h4>{s.deviceType} • {s.browser}</h4>
+                            {s.isCurrent && <span className="session-current-badge">This Device</span>}
+                          </div>
+                          <div className="session-meta">
+                            <span className="session-meta-item">
+                              <FaDesktop /> {s.os}
+                            </span>
+                            <span className="session-meta-item">
+                              <FaMapMarkedAlt /> {s.location || 'Unknown'}
+                            </span>
+                            <span className="session-meta-item">
+                              <FaClock /> Active {formatRelativeTime(s.lastActive)}
+                            </span>
+                          </div>
+                          <div className="session-meta-sub">
+                            Logged in: {new Date(s.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        {!s.isCurrent && (
+                          <button
+                            className="session-revoke-btn"
+                            onClick={() => handleRevokeSession(s.sessionId)}
+                            disabled={revokingSessionId === s.sessionId}
+                            title="Logout from this device"
+                          >
+                            {revokingSessionId === s.sessionId ? (
+                              <FaSyncAlt className="fa-spin" />
+                            ) : (
+                              <><FaSignOutAlt /> Revoke</>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Security tips */}
+                <div className="security-tips">
+                  <h4><FaShieldAlt /> Security Tips</h4>
+                  <ul>
+                    <li>If you see a device you don't recognize, revoke it immediately and change your password.</li>
+                    <li>Always logout from public/shared computers after use.</li>
+                    <li>Your session automatically expires after 24 hours for safety.</li>
+                    <li>Never share your login credentials with anyone.</li>
+                  </ul>
+                </div>
               </>
             )}
 
@@ -800,38 +1338,73 @@ const Dashboard = () => {
                 <div className="content-header">
                   <div>
                     <h2 className="content-title">My <span>Profile</span></h2>
-                    <p className="content-subtitle">Your account information</p>
+                    <p className="content-subtitle">Your account information — tap edit to update</p>
                   </div>
+                  <button onClick={openProfileEditModal} className="content-action">
+                    <FaEdit /> Edit Profile
+                  </button>
                 </div>
 
                 <div className="profile-info-card">
                   <div className="profile-field">
                     <span className="profile-field-label">Full Name</span>
-                    <span className="profile-field-value">{user?.username || 'Guest User'}</span>
+                    <span className="profile-field-value">{user?.username || 'Not set'}</span>
+                    <button className="field-edit-btn" onClick={openProfileEditModal} title="Edit">
+                      <FaEdit />
+                    </button>
                   </div>
                   <div className="profile-field">
                     <span className="profile-field-label">Email</span>
                     <span className="profile-field-value">{user?.email || 'Not set'}</span>
+                    <button className="field-edit-btn" onClick={openProfileEditModal} title="Edit">
+                      <FaEdit />
+                    </button>
                   </div>
                   <div className="profile-field">
                     <span className="profile-field-label">Phone</span>
                     <span className="profile-field-value">{user?.phone || 'Not set'}</span>
+                    <button className="field-edit-btn" onClick={openProfileEditModal} title="Edit">
+                      <FaEdit />
+                    </button>
                   </div>
                   <div className="profile-field">
                     <span className="profile-field-label">Address</span>
                     <span className="profile-field-value">{user?.address || 'Not set'}</span>
+                    <button className="field-edit-btn" onClick={openProfileEditModal} title="Edit">
+                      <FaEdit />
+                    </button>
                   </div>
                   <div className="profile-field">
                     <span className="profile-field-label">City</span>
                     <span className="profile-field-value">{user?.city || 'Not set'}</span>
+                    <button className="field-edit-btn" onClick={openProfileEditModal} title="Edit">
+                      <FaEdit />
+                    </button>
                   </div>
                   <div className="profile-field">
                     <span className="profile-field-label">Pincode</span>
                     <span className="profile-field-value">{user?.pincode || 'Not set'}</span>
+                    <button className="field-edit-btn" onClick={openProfileEditModal} title="Edit">
+                      <FaEdit />
+                    </button>
                   </div>
                   <div className="profile-field">
                     <span className="profile-field-label">Account Status</span>
                     <span className="profile-field-value" style={{ color: '#22c55e' }}>✅ Active</span>
+                  </div>
+                  <div className="profile-field">
+                    <span className="profile-field-label">Member Since</span>
+                    <span className="profile-field-value">
+                      {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recently'}
+                    </span>
+                  </div>
+                  <div className="profile-field">
+                    <span className="profile-field-label">Total Orders</span>
+                    <span className="profile-field-value">{user?.orderCount || 0} orders</span>
+                  </div>
+                  <div className="profile-field">
+                    <span className="profile-field-label">Total Spent</span>
+                    <span className="profile-field-value">₹{(user?.totalSpent || 0).toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </>
@@ -843,24 +1416,180 @@ const Dashboard = () => {
                 <div className="content-header">
                   <div>
                     <h2 className="content-title"><span>Settings</span></h2>
-                    <p className="content-subtitle">Manage your preferences</p>
+                    <p className="content-subtitle">Manage your preferences — changes save automatically</p>
                   </div>
                 </div>
 
-                <div className="profile-info-card">
-                  <div className="profile-field">
-                    <span className="profile-field-label">Email Notifications</span>
-                    <span className="profile-field-value" style={{ color: '#22c55e' }}>✅ Enabled</span>
+                {prefsLoading ? (
+                  <div className="empty-state">
+                    <FaSpinner className="fa-spin" style={{ fontSize: '32px', color: 'var(--pf-gold-deep)' }} />
+                    <h3>Loading settings...</h3>
                   </div>
-                  <div className="profile-field">
-                    <span className="profile-field-label">SMS Alerts</span>
-                    <span className="profile-field-value" style={{ color: '#22c55e' }}>✅ Enabled</span>
-                  </div>
-                  <div className="profile-field">
-                    <span className="profile-field-label">Language</span>
-                    <span className="profile-field-value">English (India)</span>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    {/* Notifications section */}
+                    <div className="settings-section">
+                      <h3 className="settings-section-title">
+                        <FaBell /> Notifications
+                      </h3>
+                      <div className="settings-list">
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Email Notifications</span>
+                            <span className="setting-desc">Receive order updates and offers via email</span>
+                          </div>
+                          <label className="toggle-switch">
+                            <input
+                              type="checkbox"
+                              checked={preferences.emailNotifications}
+                              onChange={(e) => handlePreferenceChange('emailNotifications', e.target.checked)}
+                              disabled={prefsSaving}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                        </div>
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">SMS Alerts</span>
+                            <span className="setting-desc">Get order status alerts on your phone</span>
+                          </div>
+                          <label className="toggle-switch">
+                            <input
+                              type="checkbox"
+                              checked={preferences.smsAlerts}
+                              onChange={(e) => handlePreferenceChange('smsAlerts', e.target.checked)}
+                              disabled={prefsSaving}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                        </div>
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Order Updates</span>
+                            <span className="setting-desc">Shipped, out-for-delivery, delivered notifications</span>
+                          </div>
+                          <label className="toggle-switch">
+                            <input
+                              type="checkbox"
+                              checked={preferences.orderUpdates}
+                              onChange={(e) => handlePreferenceChange('orderUpdates', e.target.checked)}
+                              disabled={prefsSaving}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                        </div>
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Marketing Emails</span>
+                            <span className="setting-desc">New products, special offers, and discounts</span>
+                          </div>
+                          <label className="toggle-switch">
+                            <input
+                              type="checkbox"
+                              checked={preferences.marketingEmails}
+                              onChange={(e) => handlePreferenceChange('marketingEmails', e.target.checked)}
+                              disabled={prefsSaving}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preferences section */}
+                    <div className="settings-section">
+                      <h3 className="settings-section-title">
+                        <FaCog /> Preferences
+                      </h3>
+                      <div className="settings-list">
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Language</span>
+                            <span className="setting-desc">Display language for the app</span>
+                          </div>
+                          <select
+                            className="setting-select"
+                            value={preferences.language}
+                            onChange={(e) => handlePreferenceChange('language', e.target.value)}
+                            disabled={prefsSaving}
+                          >
+                            <option value="en">English</option>
+                            <option value="hi">हिंदी (Hindi)</option>
+                          </select>
+                        </div>
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Theme</span>
+                            <span className="setting-desc">Choose your preferred appearance</span>
+                          </div>
+                          <select
+                            className="setting-select"
+                            value={preferences.theme}
+                            onChange={(e) => handlePreferenceChange('theme', e.target.value)}
+                            disabled={prefsSaving}
+                          >
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="system">System Default</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Security info section */}
+                    <div className="settings-section">
+                      <h3 className="settings-section-title">
+                        <FaShieldAlt /> Security
+                      </h3>
+                      <div className="settings-list">
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Session Timeout</span>
+                            <span className="setting-desc">You'll be auto-logged out after 24 hours</span>
+                          </div>
+                          <span className="setting-static-value">24 hours</span>
+                        </div>
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Session expires in</span>
+                            <span className="setting-desc">Time until current session auto-logout</span>
+                          </div>
+                          <span className="setting-static-value">{timeUntilExpiry}</span>
+                        </div>
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Active Devices</span>
+                            <span className="setting-desc">Manage your logged-in devices</span>
+                          </div>
+                          <button
+                            className="setting-link-btn"
+                            onClick={() => setActiveTab('security')}
+                          >
+                            <FaShieldAlt /> View Devices
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Danger zone */}
+                    <div className="settings-section danger-zone">
+                      <h3 className="settings-section-title">
+                        <FaExclamationTriangle /> Account Actions
+                      </h3>
+                      <div className="settings-list">
+                        <div className="setting-row">
+                          <div className="setting-info">
+                            <span className="setting-label">Logout</span>
+                            <span className="setting-desc">End your current session on this device</span>
+                          </div>
+                          <button className="setting-danger-btn" onClick={handleLogout}>
+                            <FaSignOutAlt /> Logout
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </main>
@@ -890,13 +1619,11 @@ const Dashboard = () => {
               </button>
             </div>
 
-            {/* ✅ Auto-refresh indicator */}
             <div className="tracking-auto-refresh">
               <span className="refresh-dot"></span>
               Auto-updating every 15 seconds
             </div>
 
-            {/* ✅ Order Summary */}
             <div className="tracking-summary">
               <div className="tracking-summary-item">
                 <span className="tracking-summary-label">Order ID</span>
@@ -924,12 +1651,9 @@ const Dashboard = () => {
 
             {trackingData ? (
               (() => {
-                // ✅ FIX: Fallback check — agar backend isExceptional return nahi kare
-                // toh order status se direct check karo
                 const EXCEPTIONAL_STATUSES = ['cancelled', 'return_requested', 'returned', 'refund_initiated', 'refunded', 'rejected'];
                 const isExceptional = trackingData.isExceptional || EXCEPTIONAL_STATUSES.includes(trackingOrder.status);
 
-                // ✅ Fallback: agar backend se exceptionalStatus nahi aaya, toh order status se banao
                 const exceptionalStatus = trackingData.exceptionalStatus || (isExceptional ? {
                   status: trackingOrder.status?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
                   statusKey: trackingOrder.status,
@@ -944,7 +1668,6 @@ const Dashboard = () => {
 
                 return (
               <>
-                {/* ✅ Shipping Info Bar */}
                 {(trackingData.trackingNumber || trackingData.shippingPartner || trackingData.estimatedDelivery) && (
                   <div className="tracking-shipping-info">
                     {trackingData.shippingPartner && (
@@ -965,7 +1688,6 @@ const Dashboard = () => {
                   </div>
                 )}
 
-                {/* ✅ Exceptional Status (Cancelled/Return/Refund) — with fallback */}
                 {isExceptional && exceptionalStatus && (
                   <div className={`tracking-exceptional ${
                     exceptionalStatus.statusKey === 'cancelled' ? 'cancelled' :
@@ -986,14 +1708,12 @@ const Dashboard = () => {
                   </div>
                 )}
 
-                {/* ✅ Progress Bar (only for normal delivery flow) */}
                 {!isExceptional && (
                   <div className="tracking-progress-bar">
                     <div className="tracking-progress-fill" style={{ width: `${trackingData.progress || 0}%` }}></div>
                   </div>
                 )}
 
-                {/* ✅ Enhanced Timeline (only for normal delivery) */}
                 {!isExceptional && trackingData.timeline && (
                   <div className="tracking-timeline">
                     {trackingData.timeline.map((step, idx) => (
@@ -1018,7 +1738,6 @@ const Dashboard = () => {
                   </div>
                 )}
 
-                {/* ✅ Order Items in Tracking */}
                 <div className="tracking-items">
                   <div className="tracking-items-title">Order Items</div>
                   {(trackingData.order?.items || trackingOrder.items || []).map((item, idx) => (
@@ -1296,6 +2015,206 @@ const Dashboard = () => {
                   This is a computer-generated invoice. No signature required.
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 🆕 ADDRESS ADD/EDIT MODAL ===== */}
+      {showAddressModal && (
+        <div className="confirm-modal-overlay" onClick={() => !addressSaving && setShowAddressModal(false)}>
+          <div className="confirm-modal address-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-modal-icon" style={{ background: 'rgba(196, 154, 69, 0.12)', color: 'var(--pf-gold-deep)' }}>
+              <FaMapMarkerAlt />
+            </div>
+            <h2>{editingAddress ? 'Edit Address' : 'Add New Address'}</h2>
+            <p className="confirm-modal-text">
+              {editingAddress ? 'Update your delivery address' : 'Save a delivery address for quick checkout'}
+            </p>
+
+            {/* Label selector */}
+            <label className="confirm-modal-label">Address Label</label>
+            <div className="address-label-selector">
+              {['Home', 'Office', 'Other'].map((lbl) => (
+                <button
+                  key={lbl}
+                  type="button"
+                  className={`label-chip ${addressForm.label === lbl ? 'active' : ''}`}
+                  onClick={() => setAddressForm({ ...addressForm, label: lbl })}
+                >
+                  {lbl === 'Home' ? <FaHome /> : lbl === 'Office' ? <FaBuilding /> : <FaTag />}
+                  {lbl}
+                </button>
+              ))}
+            </div>
+
+            <label className="confirm-modal-label">Full Name <span className="required">*</span></label>
+            <input
+              className="confirm-modal-input"
+              type="text"
+              value={addressForm.name}
+              onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
+              placeholder="Recipient's name"
+              disabled={addressSaving}
+            />
+
+            <label className="confirm-modal-label">Phone <span className="required">*</span></label>
+            <input
+              className="confirm-modal-input"
+              type="tel"
+              value={addressForm.phone}
+              onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+              placeholder="+91 98765 43210"
+              disabled={addressSaving}
+            />
+
+            <label className="confirm-modal-label">Address <span className="required">*</span></label>
+            <textarea
+              className="confirm-modal-input"
+              value={addressForm.address}
+              onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
+              placeholder="House no, street, area, landmark"
+              rows={2}
+              disabled={addressSaving}
+            />
+
+            <div className="address-form-row">
+              <div>
+                <label className="confirm-modal-label">City <span className="required">*</span></label>
+                <input
+                  className="confirm-modal-input"
+                  type="text"
+                  value={addressForm.city}
+                  onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                  placeholder="City"
+                  disabled={addressSaving}
+                />
+              </div>
+              <div>
+                <label className="confirm-modal-label">Pincode <span className="required">*</span></label>
+                <input
+                  className="confirm-modal-input"
+                  type="text"
+                  value={addressForm.pincode}
+                  onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })}
+                  placeholder="6-digit pincode"
+                  maxLength={6}
+                  disabled={addressSaving}
+                />
+              </div>
+            </div>
+
+            <div className="confirm-modal-actions">
+              <button
+                className="confirm-btn secondary"
+                onClick={() => setShowAddressModal(false)}
+                disabled={addressSaving}
+              >
+                Cancel
+              </button>
+              <button
+                className="confirm-btn primary"
+                onClick={handleSaveAddress}
+                disabled={addressSaving}
+              >
+                {addressSaving ? <><FaSpinner className="fa-spin" /> Saving...</> : <><FaCheck /> Save Address</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 🆕 PROFILE EDIT MODAL ===== */}
+      {showProfileEditModal && (
+        <div className="confirm-modal-overlay" onClick={() => !profileSaving && setShowProfileEditModal(false)}>
+          <div className="confirm-modal address-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-modal-icon" style={{ background: 'rgba(196, 154, 69, 0.12)', color: 'var(--pf-gold-deep)' }}>
+              <FaUser />
+            </div>
+            <h2>Edit Profile</h2>
+            <p className="confirm-modal-text">Update your account information</p>
+
+            <label className="confirm-modal-label">Full Name</label>
+            <input
+              className="confirm-modal-input"
+              type="text"
+              value={profileForm.username}
+              onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+              placeholder="Your name"
+              disabled={profileSaving}
+            />
+
+            <label className="confirm-modal-label">Email</label>
+            <input
+              className="confirm-modal-input"
+              type="email"
+              value={profileForm.email}
+              onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+              placeholder="your@email.com"
+              disabled={profileSaving}
+            />
+
+            <label className="confirm-modal-label">Phone</label>
+            <input
+              className="confirm-modal-input"
+              type="tel"
+              value={profileForm.phone}
+              onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+              placeholder="+91 98765 43210"
+              disabled={profileSaving}
+            />
+
+            <label className="confirm-modal-label">Address</label>
+            <textarea
+              className="confirm-modal-input"
+              value={profileForm.address}
+              onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+              placeholder="Your address"
+              rows={2}
+              disabled={profileSaving}
+            />
+
+            <div className="address-form-row">
+              <div>
+                <label className="confirm-modal-label">City</label>
+                <input
+                  className="confirm-modal-input"
+                  type="text"
+                  value={profileForm.city}
+                  onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
+                  placeholder="City"
+                  disabled={profileSaving}
+                />
+              </div>
+              <div>
+                <label className="confirm-modal-label">Pincode</label>
+                <input
+                  className="confirm-modal-input"
+                  type="text"
+                  value={profileForm.pincode}
+                  onChange={(e) => setProfileForm({ ...profileForm, pincode: e.target.value })}
+                  placeholder="Pincode"
+                  maxLength={6}
+                  disabled={profileSaving}
+                />
+              </div>
+            </div>
+
+            <div className="confirm-modal-actions">
+              <button
+                className="confirm-btn secondary"
+                onClick={() => setShowProfileEditModal(false)}
+                disabled={profileSaving}
+              >
+                Cancel
+              </button>
+              <button
+                className="confirm-btn primary"
+                onClick={handleSaveProfile}
+                disabled={profileSaving}
+              >
+                {profileSaving ? <><FaSpinner className="fa-spin" /> Saving...</> : <><FaCheck /> Save Changes</>}
+              </button>
             </div>
           </div>
         </div>

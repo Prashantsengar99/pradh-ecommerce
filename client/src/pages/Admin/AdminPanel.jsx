@@ -11,7 +11,7 @@ import {
   FaTruck, FaReceipt, FaRupeeSign, FaBars,
   FaArrowUp, FaArrowDown, FaClock, FaExclamationTriangle, FaBell,
   FaChartLine, FaShoppingCart, FaBoxOpen, FaUndoAlt, FaCheck, FaBan, FaWhatsapp,
-  FaGift,
+  FaGift, FaEnvelope, FaPaperPlane, FaInbox, FaFilePdf,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import '../../styles/admin.css';
@@ -66,6 +66,11 @@ const AdminPanel = () => {
   const [orderFilter, setOrderFilter] = useState('all');
   const [trackingInfo, setTrackingInfo] = useState({ trackingNumber: '', shippingPartner: '', estimatedDelivery: '' });
   const [trackingSaving, setTrackingSaving] = useState(false);
+
+  // 📧 EMAIL CENTER state
+  const [sendingEmailId, setSendingEmailId] = useState(null); // which order email is being sent to
+  const [emailConfigured, setEmailConfigured] = useState(true); // is Gmail configured on backend?
+  const [mailSearch, setMailSearch] = useState(''); // search in Mail Center
 
   useEffect(() => {
     if (!localStorage.getItem('adminLoggedIn')) {
@@ -190,6 +195,7 @@ const AdminPanel = () => {
     if (key === 'returns') loadReturns();
     if (key === 'wheel') loadWheelSettings();
     if (key === 'announcement') loadAnnouncementSettings();
+    if (key === 'mail') { loadOrders(); checkEmailStatus(); }
     if (key === 'dashboard') loadDashboard();
   };
 
@@ -409,6 +415,75 @@ const AdminPanel = () => {
       }
     } catch (err) { toast.error('Error updating tracking info'); }
     finally { setTrackingSaving(false); }
+  };
+
+  // 📧 SEND DELIVERY EMAIL — single click sends branded email + invoice PDF
+  const handleSendDeliveryEmail = async (orderId, customerName) => {
+    if (!window.confirm(`Send delivery confirmation email with invoice to "${customerName}"?`)) return;
+    setSendingEmailId(orderId);
+    const toastId = toast.loading('Preparing email with invoice PDF...');
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const res = await apiFetch('/api/admin/send-delivery-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`✉️ Email sent to ${data.sentTo}!`, { id: toastId, duration: 4000 });
+      } else {
+        toast.error(data.error || 'Failed to send email', { id: toastId, duration: 5000 });
+      }
+    } catch (err) {
+      toast.error('Network error. Check if email is configured.', { id: toastId, duration: 5000 });
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
+
+  // 📧 Check if email is configured on backend
+  const checkEmailStatus = async () => {
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const res = await apiFetch('/api/admin/email-status', {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEmailConfigured(data.configured);
+      }
+    } catch (err) {
+      // Silently fail — assume configured
+    }
+  };
+
+  // 📧 PREVIEW EMAIL — fetches HTML from backend (with auth) and opens in new tab
+  // Works WITHOUT Gmail setup — just shows the template
+  const handlePreviewEmail = async (orderId) => {
+    const toastId = toast.loading('Generating email preview...');
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const res = await apiFetch(`/api/admin/preview-email/${orderId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate preview');
+      }
+      const html = await res.text();
+      // Open new window and write the HTML
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+        toast.success('Email preview opened in new tab! 📧', { id: toastId });
+      } else {
+        toast.error('Popup blocked. Allow popups for this site.', { id: toastId });
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to load preview', { id: toastId });
+    }
   };
 
   // COUPONS
@@ -710,10 +785,13 @@ const AdminPanel = () => {
   const recentActivity = getRecentActivity();
   const COLORS = ['#facc15', '#22c55e', '#3b82f6', '#8b5cf6', '#ef4444'];
 
+  const deliveredOrders = orders.filter((o) => o.status === 'delivered');
+
   const menuItems = [
     { key: 'dashboard', icon: <FaChartPie />, label: 'Dashboard' },
     { key: 'products', icon: <FaBox />, label: 'Products', badge: products.length },
     { key: 'orders', icon: <FaShoppingBag />, label: 'Orders', badge: orders.length },
+    { key: 'mail', icon: <FaEnvelope />, label: 'Mail Center', badge: deliveredOrders.length },
     { key: 'coupons', icon: <FaTicketAlt />, label: 'Coupons' },
     { key: 'reviews', icon: <FaStar />, label: 'Reviews', badge: pendingReviews },
     { key: 'returns', icon: <FaUndoAlt />, label: 'Returns', badge: returnRequests.filter(r => r.status === 'pending').length },
@@ -1663,6 +1741,158 @@ const AdminPanel = () => {
               </div>
             </div>
           )}
+
+          {/* ===== 📧 MAIL CENTER ===== */}
+          {section === 'mail' && (
+            <div className="page-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>📧 Mail Center</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Send delivery confirmation emails with invoice PDF — single click</p>
+                </div>
+                <button className="btn-primary" onClick={() => { loadOrders(); checkEmailStatus(); }}>
+                  <FaSync /> Refresh
+                </button>
+              </div>
+
+              {/* Email config status banner */}
+              {!emailConfigured && (
+                <div style={{ marginBottom: '20px', padding: '16px 20px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <FaExclamationTriangle style={{ color: '#ef4444', fontSize: '20px', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontWeight: '700', color: '#ef4444', fontSize: '14px' }}>Email Not Configured</div>
+                    <div style={{ fontSize: '13px', color: 'var(--pf-text-muted, #8A7560)', marginTop: '4px' }}>
+                      Set <code>EMAIL_USER</code> and <code>EMAIL_PASS</code> (Gmail App Password) in server .env file to enable email sending.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+                <div className="stat-card-enhanced" style={{ padding: '16px' }}>
+                  <div className="stat-icon-box green" style={{ width: '40px', height: '40px', fontSize: '18px' }}><FaCheck /></div>
+                  <div className="stat-value-enhanced" style={{ fontSize: '24px', marginTop: '8px' }}>{deliveredOrders.length}</div>
+                  <div className="stat-label-enhanced" style={{ fontSize: '12px' }}>Delivered Orders</div>
+                </div>
+                <div className="stat-card-enhanced" style={{ padding: '16px' }}>
+                  <div className="stat-icon-box yellow" style={{ width: '40px', height: '40px', fontSize: '18px' }}><FaInbox /></div>
+                  <div className="stat-value-enhanced" style={{ fontSize: '24px', marginTop: '8px' }}>{deliveredOrders.filter(o => o.customer?.email && o.customer.email !== 'N/A').length}</div>
+                  <div className="stat-label-enhanced" style={{ fontSize: '12px' }}>With Email Address</div>
+                </div>
+                <div className="stat-card-enhanced" style={{ padding: '16px' }}>
+                  <div className="stat-icon-box blue" style={{ width: '40px', height: '40px', fontSize: '18px' }}><FaPaperPlane /></div>
+                  <div className="stat-value-enhanced" style={{ fontSize: '24px', marginTop: '8px' }}>pradhfoods@gmail.com</div>
+                  <div className="stat-label-enhanced" style={{ fontSize: '12px' }}>Sender Email</div>
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="admin-order-search" style={{ marginBottom: '16px' }}>
+                <input
+                  type="text"
+                  className="admin-search-input"
+                  placeholder="🔍 Search by Order ID, customer name, or email..."
+                  value={mailSearch}
+                  onChange={(e) => setMailSearch(e.target.value)}
+                />
+              </div>
+
+              {/* Delivered orders list */}
+              {deliveredOrders.length === 0 ? (
+                <div className="empty-state" style={{ padding: '60px 20px', textAlign: 'center' }}>
+                  <FaBoxOpen style={{ fontSize: '48px', color: 'var(--pf-text-muted, #8A7560)', marginBottom: '12px' }} />
+                  <h3 style={{ color: 'var(--pf-chocolate, #39251B)' }}>No delivered orders yet</h3>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Once orders are marked as "Delivered", they'll appear here for email sending.</p>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Email</th>
+                        <th>Total</th>
+                        <th>Delivered Date</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deliveredOrders
+                        .filter((o) => {
+                          const q = mailSearch.toLowerCase().trim();
+                          if (!q) return true;
+                          return (o.id || '').toLowerCase().includes(q) ||
+                            (o.customer?.name || '').toLowerCase().includes(q) ||
+                            (o.customer?.email || '').toLowerCase().includes(q);
+                        })
+                        .map((o) => {
+                          const hasEmail = o.customer?.email && o.customer.email !== 'N/A';
+                          return (
+                            <tr key={o.id || o.order_id}>
+                              <td><span style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontFamily: 'monospace', fontSize: '13px', fontWeight: 700 }}>{o.id || o.order_id}</span></td>
+                              <td><strong>{o.customer?.name || 'Guest'}</strong></td>
+                              <td style={{ color: hasEmail ? 'var(--pf-text-soft, #5C4A3D)' : '#ef4444', fontSize: '13px' }}>
+                                {hasEmail ? o.customer.email : 'No email'}
+                              </td>
+                              <td style={{ color: 'var(--pf-gold-deep, #A67C2E)', fontWeight: 600 }}>₹{(o.total || 0).toFixed(2)}</td>
+                              <td style={{ color: 'var(--pf-text-muted, #8A7560)', fontSize: '13px' }}>
+                                {o.date ? new Date(o.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                  <button
+                                    className="btn-info"
+                                    onClick={() => handlePreviewEmail(o.id || o.order_id)}
+                                    style={{ padding: '8px 12px', fontSize: '11px' }}
+                                    title="Preview email template (no sending)"
+                                  >
+                                    <FaEye /> Preview
+                                  </button>
+                                  <button
+                                    className="btn-primary"
+                                    onClick={() => handleSendDeliveryEmail(o.id || o.order_id, o.customer?.name || 'Customer')}
+                                    disabled={!hasEmail || sendingEmailId === (o.id || o.order_id)}
+                                    style={{
+                                      padding: '8px 12px',
+                                      fontSize: '11px',
+                                      opacity: (!hasEmail || sendingEmailId === (o.id || o.order_id)) ? 0.5 : 1,
+                                      cursor: (!hasEmail || sendingEmailId === (o.id || o.order_id)) ? 'not-allowed' : 'pointer',
+                                    }}
+                                    title={hasEmail ? 'Send delivery email with invoice PDF' : 'Customer has no email address'}
+                                  >
+                                    {sendingEmailId === (o.id || o.order_id) ? (
+                                      <><FaSync className="spin-icon" /> Sending...</>
+                                    ) : (
+                                      <><FaPaperPlane /> Send</>
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* How it works info */}
+              <div style={{ marginTop: '24px', padding: '18px 22px', background: 'rgba(196, 154, 69, 0.08)', border: '1px dashed rgba(196, 154, 69, 0.3)', borderRadius: '12px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--pf-chocolate, #39251B)', fontSize: '14px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FaFilePdf style={{ color: 'var(--pf-gold-deep, #A67C2E)' }} /> How it works
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--pf-text-soft, #5C4A3D)', fontSize: '13px', lineHeight: 1.7 }}>
+                  <li>Click "Send Email" next to any delivered order</li>
+                  <li>Customer receives a branded email from <strong>pradhfoods@gmail.com</strong></li>
+                  <li>Email includes: delivery confirmation message + order summary + review request</li>
+                  <li><strong>Invoice PDF is automatically attached</strong> — no manual generation needed</li>
+                  <li>Email template has PRADH DESI FUEL branding (chocolate/gold theme)</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </main>
       </div>
 
@@ -1929,6 +2159,50 @@ const AdminPanel = () => {
             {selectedOrder.cancellation_reason && (
               <div style={{ marginTop: '15px', padding: '10px 15px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: '8px', color: '#ef4444', fontSize: '14px' }}>
                 <strong>Cancellation Reason:</strong> {selectedOrder.cancellation_reason}
+              </div>
+            )}
+
+            {/* 📧 SEND DELIVERY EMAIL — only show for delivered orders */}
+            {selectedOrder.status === 'delivered' && (
+              <div style={{ marginTop: '16px', padding: '16px 20px', background: 'linear-gradient(135deg, rgba(196,154,69,0.08), rgba(57,37,27,0.04))', border: '1px solid rgba(196,154,69,0.3)', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--pf-chocolate, #39251B)', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FaEnvelope style={{ color: 'var(--pf-gold-deep, #A67C2E)' }} /> Send Delivery Email
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--pf-text-muted, #8A7560)', marginTop: '4px' }}>
+                      {selectedOrder.customer?.email && selectedOrder.customer.email !== 'N/A'
+                        ? <>Customer email: <strong>{selectedOrder.customer.email}</strong></>
+                        : <span style={{ color: '#ef4444' }}>⚠️ Customer has no email address</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn-info"
+                      onClick={() => handlePreviewEmail(selectedOrder.id || selectedOrder.order_id)}
+                      style={{ padding: '10px 16px', fontSize: '13px' }}
+                      title="Preview email template (no sending)"
+                    >
+                      <FaEye /> Preview
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={() => handleSendDeliveryEmail(selectedOrder.id || selectedOrder.order_id, selectedOrder.customer?.name || 'Customer')}
+                      disabled={!selectedOrder.customer?.email || selectedOrder.customer.email === 'N/A' || sendingEmailId === (selectedOrder.id || selectedOrder.order_id)}
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: '13px',
+                        opacity: (!selectedOrder.customer?.email || selectedOrder.customer.email === 'N/A' || sendingEmailId === (selectedOrder.id || selectedOrder.order_id)) ? 0.5 : 1,
+                      }}
+                    >
+                      {sendingEmailId === (selectedOrder.id || selectedOrder.order_id) ? (
+                        <><FaSync className="spin-icon" /> Sending...</>
+                      ) : (
+                        <><FaPaperPlane /> Send Email + Invoice</>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 

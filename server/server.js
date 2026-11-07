@@ -9,6 +9,7 @@ const PDFDocument = require('pdfkit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
+const nodemailer = require('nodemailer'); // 📧 For sending delivery emails with invoice
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -52,6 +53,28 @@ const userSchema = new mongoose.Schema({
   totalSpent: { type: Number, default: 0 },
   rewards: { type: Number, default: 0 },
   level: { type: String, default: 'Bronze' },
+  // 🆕 Multiple saved addresses — user can save Home, Office, etc.
+  // At checkout, user selects one (no need to type address every time)
+  addresses: [{
+    id: { type: String, required: true },
+    label: { type: String, default: 'Home' }, // Home | Office | Other
+    name: { type: String, required: true },
+    phone: { type: String, required: true },
+    address: { type: String, required: true },
+    city: { type: String, required: true },
+    pincode: { type: String, required: true },
+    isDefault: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now },
+  }],
+  // 🆕 User preferences — functional Settings tab
+  preferences: {
+    emailNotifications: { type: Boolean, default: true },
+    smsAlerts: { type: Boolean, default: true },
+    marketingEmails: { type: Boolean, default: false },
+    orderUpdates: { type: Boolean, default: true },
+    language: { type: String, default: 'en' }, // en | hi
+    theme: { type: String, default: 'light' }, // light | dark | system
+  },
 });
 
 const productSchema = new mongoose.Schema({
@@ -96,7 +119,7 @@ const orderSchema = new mongoose.Schema({
     status: String,
     timestamp: Date,
     description: String,
-    updatedBy: { type: String, default: 'system' }, // 'admin' | 'system' | 'user'
+    updatedBy: { type: String, default: 'system' },
   }],
   trackingNumber: { type: String, default: '' },
   shippingPartner: { type: String, default: '' },
@@ -124,7 +147,6 @@ const reviewSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-
 const returnRequestSchema = new mongoose.Schema({
   id: { type: String, unique: true, required: true },
   userId: { type: String, default: null },
@@ -136,8 +158,8 @@ const returnRequestSchema = new mongoose.Schema({
   reason: { type: String, required: true },
   issueDate: { type: String, default: '' },
   description: { type: String, required: true },
-  requestType: { type: String, default: 'return' }, // 'return' | 'replace' | 'refund'
-  status: { type: String, default: 'pending' }, // pending | approved | rejected | resolved
+  requestType: { type: String, default: 'return' },
+  status: { type: String, default: 'pending' },
   adminNote: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
@@ -151,7 +173,6 @@ const settingsSchema = new mongoose.Schema({
   wheelDiscountPercent: { type: Number, default: 20 },
   wheelLabel: { type: String, default: '20% OFF' },
   wheelEnabled: { type: Boolean, default: true },
-  // Announcement Bar + CTA Banner settings
   announcementEnabled: { type: Boolean, default: true },
   announcementText: { type: String, default: 'Use code PRADH20 for 20% OFF on your first order — Limited time only' },
   announcementCoupon: { type: String, default: 'PRADH20' },
@@ -162,6 +183,29 @@ const settingsSchema = new mongoose.Schema({
   lastUpdated: { type: Date, default: Date.now },
 });
 
+// ============================================================
+// 🛡️ SESSION SCHEMA — Device tracking + auto-logout after 24h
+// Each login creates a session record. verifyToken checks both
+// JWT signature AND that the session is still active.
+// Users can view/revoke their sessions from Dashboard.
+// NOTE: IP is NOT stored (privacy + DB space). Only location string
+// ("Mumbai, IN") is saved for display.
+// ============================================================
+const sessionSchema = new mongoose.Schema({
+  sessionId: { type: String, unique: true, required: true, index: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  tokenHash: { type: String, required: true },
+  deviceType: { type: String, default: 'Unknown' },
+  browser: { type: String, default: 'Unknown' },
+  os: { type: String, default: 'Unknown' },
+  location: { type: String, default: 'Unknown' }, // "Mumbai, IN" — no IP stored
+  createdAt: { type: Date, default: Date.now },
+  lastActive: { type: Date, default: Date.now },
+  expiresAt: { type: Date, required: true },
+  isActive: { type: Boolean, default: true, index: true },
+});
+sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 const User = mongoose.model('User', userSchema);
 const Product = mongoose.model('Product', productSchema);
 const Order = mongoose.model('Order', orderSchema);
@@ -169,21 +213,113 @@ const Coupon = mongoose.model('Coupon', couponSchema);
 const Review = mongoose.model('Review', reviewSchema);
 const Setting = mongoose.model('Setting', settingsSchema);
 const ReturnRequest = mongoose.model('ReturnRequest', returnRequestSchema);
+const Session = mongoose.model('Session', sessionSchema);
 
 // ============================================
-// JWT CONFIG
+// JWT CONFIG — 🛡️ Changed from 7d → 24h for security
 // ============================================
 const JWT_SECRET = process.env.JWT_SECRET || 'pradh_desi_fuel_secret_key_2026';
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const SESSION_DURATION_STR = '24h';
 
-function generateToken(user) {
+function generateToken(user, sessionId) {
   return jwt.sign(
-    { id: user._id, username: user.username, email: user.email, phone: user.phone },
+    { id: user._id, username: user.username, email: user.email, phone: user.phone, sessionId },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: SESSION_DURATION_STR }
   );
 }
 
-function verifyToken(req, res, next) {
+// ============================================================
+// 🛡️ SECURITY HELPERS — Device fingerprinting + IP geolocation
+// ============================================================
+function parseDeviceInfo(userAgent = '') {
+  const ua = userAgent.toLowerCase();
+  let deviceType = 'Desktop';
+  if (/ipad|tablet|playbook|silk/.test(ua)) deviceType = 'Tablet';
+  else if (/mobile|iphone|ipod|android.*mobile|opera mini|iemobile|blackberry/.test(ua)) deviceType = 'Mobile';
+  else if (/bot|crawler|spider|cURL/.test(ua)) deviceType = 'Bot';
+
+  let browser = 'Unknown';
+  if (/edg\//.test(ua)) browser = 'Microsoft Edge';
+  else if (/opr\/|opera/.test(ua)) browser = 'Opera';
+  else if (/chrome|crios/.test(ua) && !/edg/.test(ua)) browser = 'Chrome';
+  else if (/firefox|fxios/.test(ua)) browser = 'Firefox';
+  else if (/safari/.test(ua) && !/chrome/.test(ua)) browser = 'Safari';
+  else if (/msie|trident/.test(ua)) browser = 'Internet Explorer';
+
+  let os = 'Unknown';
+  if (/windows nt 10/.test(ua)) os = 'Windows 10/11';
+  else if (/windows nt/.test(ua)) os = 'Windows';
+  else if (/mac os x|macintosh/.test(ua)) os = 'macOS';
+  else if (/android/.test(ua)) os = 'Android';
+  else if (/iphone|ipad|ipod/.test(ua)) os = 'iOS';
+  else if (/linux/.test(ua)) os = 'Linux';
+  else if (/cros/.test(ua)) os = 'Chrome OS';
+
+  return { deviceType, browser, os };
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return req.socket?.remoteAddress || req.ip || 'Unknown';
+}
+
+async function getLocationFromIp(ip) {
+  if (!ip || ip === 'Unknown' || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+    return 'Local network';
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,city,regionName`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const data = await res.json();
+    if (data.status === 'success' && data.city) {
+      return `${data.city}, ${data.country}`;
+    }
+    return data.country || 'Unknown';
+  } catch {
+    return 'Unknown';
+  }
+}
+
+async function createSession(userId, token, req) {
+  const sessionId = crypto.randomBytes(16).toString('hex') + Date.now().toString(36);
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const { deviceType, browser, os } = parseDeviceInfo(req.headers['user-agent']);
+  // 🛡️ IP is NOT stored in DB (privacy + space). We only use it transiently
+  // to look up location, then discard it.
+  const ip = getClientIp(req);
+  const location = await getLocationFromIp(ip);
+  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+
+  // Deactivate old sessions for the same device+browser (avoid clutter)
+  await Session.updateMany(
+    { userId, deviceType, browser, isActive: true },
+    { $set: { isActive: false } }
+  );
+
+  await Session.create({
+    sessionId,
+    userId,
+    tokenHash,
+    deviceType,
+    browser,
+    os,
+    // ip NOT saved here
+    location,
+    expiresAt,
+    isActive: true,
+  });
+  return sessionId;
+}
+
+// 🛡️ Enhanced verifyToken — checks JWT AND session is still active in DB
+async function verifyToken(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
     return res.status(401).json({ success: false, message: 'Please login to continue' });
@@ -191,9 +327,36 @@ function verifyToken(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    req.token = token;
+
+    // 🛡️ Session validation — if token has sessionId, verify it's still active
+    if (decoded.sessionId) {
+      const session = await Session.findOne({ sessionId: decoded.sessionId }).maxTimeMS(2000);
+      if (!session || !session.isActive) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session expired or revoked. Please login again.',
+          code: 'SESSION_REVOKED',
+        });
+      }
+      if (session.expiresAt && session.expiresAt < new Date()) {
+        await Session.updateOne({ _id: session._id }, { $set: { isActive: false } });
+        return res.status(401).json({
+          success: false,
+          message: 'Session expired. Please login again.',
+          code: 'SESSION_EXPIRED',
+        });
+      }
+      // Update lastActive (fire-and-forget)
+      Session.updateOne({ _id: session._id }, { $set: { lastActive: new Date() } }).catch(() => {});
+    }
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    return res.status(401).json({
+      success: false,
+      message: 'Session expired. Please login again.',
+      code: 'TOKEN_EXPIRED',
+    });
   }
 }
 
@@ -211,6 +374,303 @@ const razorpay = new Razorpay({
 });
 
 console.log('✅ Razorpay initialized');
+
+// ============================================================
+// 📧 EMAIL SETUP — nodemailer with Gmail
+// Sends delivery confirmation emails with invoice PDF attached
+// from pradhfoods@gmail.com
+// ============================================================
+const EMAIL_USER = process.env.EMAIL_USER || 'pradhfoods@gmail.com';
+const EMAIL_PASS = process.env.EMAIL_PASS || ''; // Gmail App Password (16 chars)
+
+let emailTransporter = null;
+if (EMAIL_PASS) {
+  emailTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_PASS,
+    },
+  });
+  console.log('✅ Email transporter initialized for', EMAIL_USER);
+} else {
+  console.warn('⚠️ EMAIL_PASS not set — delivery emails will not work. Set up Gmail App Password.');
+}
+
+// ============================================================
+// 📧 REUSABLE INVOICE PDF GENERATOR — returns a Promise<Buffer>
+// Used by both /api/invoice/:orderId (streams to response) and
+// /api/admin/send-delivery-email (attaches to email)
+// ============================================================
+function generateInvoicePdfBuffer(order) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      const gold = '#facc15';
+      const dark = '#0f172a';
+      const gray = '#64748b';
+      const lightGray = '#f8fafc';
+
+      let y = 50;
+      doc.fontSize(28).font('Helvetica-Bold').fillColor(gold).text('PRADH DESI FUEL', 50, y, { align: 'center' });
+      y += 35;
+      doc.fontSize(12).font('Helvetica').fillColor(gray).text('💪 Pure Desi Protein Fuel', 50, y, { align: 'center' });
+      y += 30;
+      doc.fontSize(24).font('Helvetica-Bold').fillColor(dark).text('INVOICE', 50, y, { align: 'center' });
+      y += 20;
+      doc.fontSize(10).font('Helvetica').fillColor(gray).text('Invoice #: ' + order.id, 50, y, { align: 'center' });
+      y += 30;
+      doc.moveTo(50, y).lineTo(550, y).strokeColor(gold).lineWidth(2).stroke();
+      y += 25;
+
+      const leftX = 50, rightX = 320, lineHeight = 20;
+      doc.fontSize(11).font('Helvetica-Bold').fillColor(dark).text('ORDER DETAILS', leftX, y);
+      y += 18;
+      doc.font('Helvetica').fontSize(9).fillColor(gray);
+      const orderInfo = [
+        ['Order Date:', new Date(order.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })],
+        ['Payment ID:', order.payment_id || 'N/A'],
+        ['Payment Method:', order.customer?.paymentMethod || 'N/A'],
+        ['Status:', (order.status || 'Pending').toUpperCase()],
+      ];
+      let orderY = y;
+      orderInfo.forEach(function (pair) {
+        doc.text(pair[0], leftX, orderY);
+        doc.text(pair[1], leftX + 100, orderY);
+        orderY += lineHeight;
+      });
+
+      let custY = y;
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(dark).text('BILL TO', rightX, custY);
+      custY += 18;
+      doc.font('Helvetica').fontSize(9).fillColor(gray);
+      const cust = order.customer || {};
+      const customerLines = [
+        cust.name || 'Guest',
+        cust.address || 'N/A',
+        (cust.city || '') + ' ' + (cust.pincode || ''),
+        'Phone: ' + (cust.phone || 'N/A'),
+        'Email: ' + (cust.email || 'N/A'),
+      ];
+      customerLines.forEach(function (line) {
+        if (line.trim()) {
+          doc.text(line, rightX, custY);
+          custY += lineHeight;
+        }
+      });
+
+      y = Math.max(orderY, custY) + 15;
+      doc.moveTo(50, y).lineTo(550, y).strokeColor('#e2e8f0').lineWidth(1).stroke();
+      y += 20;
+
+      const tableX = 50, col1 = 60, col2 = 280, col3 = 380, col4 = 460;
+      doc.fillColor(lightGray).rect(tableX, y, 500, 22).fill();
+      doc.fillColor(dark).font('Helvetica-Bold').fontSize(9);
+      doc.text('Product', col1, y + 5);
+      doc.text('Qty', col2, y + 5);
+      doc.text('Price', col3, y + 5);
+      doc.text('Total', col4, y + 5);
+      y += 22;
+
+      let subtotal = 0;
+      if (order.items) {
+        order.items.forEach(function (item, idx) {
+          const total = item.price * item.quantity;
+          subtotal += total;
+          if (idx % 2 === 0) {
+            doc.fillColor('#fafafa').rect(tableX, y, 500, 20).fill();
+          }
+          doc.fillColor(dark).font('Helvetica').fontSize(9);
+          const name = item.name.length > 28 ? item.name.substring(0, 25) + '...' : item.name;
+          doc.text(name || 'Product', col1, y + 4);
+          doc.text(item.quantity || 1, col2, y + 4);
+          doc.text('₹' + item.price.toFixed(0), col3, y + 4);
+          doc.text('₹' + total.toFixed(0), col4, y + 4);
+          y += 20;
+        });
+      }
+
+      doc.moveTo(50, y).lineTo(550, y).strokeColor('#e2e8f0').lineWidth(1).stroke();
+      y += 15;
+
+      const deliveryCharge = order.deliveryCharge || 0;
+      const discount = order.discount || 0;
+      const grandTotal = subtotal + deliveryCharge - discount;
+
+      const totalX = 500, labelX = 400;
+      doc.font('Helvetica').fontSize(10);
+      doc.fillColor(gray).text('Subtotal:', labelX, y, { align: 'right' });
+      doc.fillColor(dark).text('₹' + subtotal.toFixed(0), totalX, y, { align: 'right' });
+      y += 22;
+      doc.fillColor(gray).text('Delivery:', labelX, y, { align: 'right' });
+      doc.fillColor(deliveryCharge === 0 ? '#22c55e' : dark).text(deliveryCharge === 0 ? 'FREE' : '₹' + deliveryCharge.toFixed(0), totalX, y, { align: 'right' });
+      y += 22;
+      if (order.coupon) {
+        doc.fillColor(gray).text('Discount (' + order.coupon + '):', labelX, y, { align: 'right' });
+        doc.fillColor('#22c55e').text('-₹' + discount.toFixed(0), totalX, y, { align: 'right' });
+        y += 22;
+      }
+      y += 8;
+      doc.moveTo(300, y).lineTo(550, y).strokeColor(gold).lineWidth(1.5).stroke();
+      y += 10;
+      doc.font('Helvetica-Bold').fontSize(16).fillColor(gold).text('Grand Total:', labelX + 400, y, { align: 'right' }).text('₹' + grandTotal.toFixed(0), totalX + 400, y, { align: 'right' });
+      y += 30;
+
+      const statusColors = { pending: '#facc15', paid: '#22c55e', shipped: '#3b82f6', delivered: '#8b5cf6', cancelled: '#ef4444' };
+      const statusColor = statusColors[order.status] || gray;
+      doc.fillColor(statusColor).roundedRect(50, y, 130, 22, 4).fill();
+      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9).text('STATUS: ' + (order.status || 'Pending').toUpperCase(), 58, y + 5);
+
+      const footerY = 770;
+      doc.moveTo(50, footerY).lineTo(550, footerY).strokeColor(gold).lineWidth(1).stroke();
+      doc.fontSize(8).font('Helvetica').fillColor(gray)
+        .text('💪 Thank you for choosing PRADH Desi Fuel!', 50, footerY + 12, { align: 'center' })
+        .text('📞 +91 8979993655  |  📧 pradhfoods@gmail.com', 50, footerY + 26, { align: 'center' });
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+// ============================================================
+// 📧 DELIVERY EMAIL HTML TEMPLATE — beautiful branded email
+// ============================================================
+function generateDeliveryEmailHtml(order) {
+  const customerName = order.customer?.name || 'Valued Customer';
+  const orderId = order.id || 'N/A';
+  const orderDate = order.date ? new Date(order.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recently';
+  const total = (order.total || 0).toFixed(2);
+  const itemCount = (order.items || []).reduce((s, i) => s + (i.quantity || 0), 0);
+  const itemsList = (order.items || []).map(item =>
+    `<tr>
+      <td style="padding: 10px; border-bottom: 1px solid #f0f0f0;">${item.name || 'Product'}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #f0f0f0; text-align: center;">${item.quantity || 1}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #f0f0f0; text-align: right;">₹${((item.price || 0) * (item.quantity || 1)).toFixed(0)}</td>
+    </tr>`
+  ).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; background: #F8F5EF; color: #39251B;">
+  <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border-radius: 0; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+
+    <!-- Header with gradient -->
+    <div style="background: linear-gradient(135deg, #39251B 0%, #5C4A3D 100%); padding: 36px 30px; text-align: center;">
+      <div style="color: #C49A45; font-size: 28px; font-weight: 700; font-family: Georgia, serif; letter-spacing: 2px;">PRADH DESI FUEL</div>
+      <div style="color: #D9B872; font-size: 12px; margin-top: 6px; letter-spacing: 3px; text-transform: uppercase;">Premium Natural Nutrition</div>
+    </div>
+
+    <!-- Success Banner -->
+    <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 20px 30px; text-align: center;">
+      <div style="color: #ffffff; font-size: 22px; font-weight: 700;">🎉 Order Delivered Successfully!</div>
+      <div style="color: rgba(255,255,255,0.9); font-size: 13px; margin-top: 6px;">Your package has arrived — enjoy your PRADH fuel!</div>
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 36px 30px;">
+
+      <p style="font-size: 16px; margin: 0 0 16px;">Dear <strong>${customerName}</strong>,</p>
+
+      <p style="font-size: 15px; line-height: 1.7; color: #5C4A3D; margin: 0 0 20px;">
+        Great news! Your PRADH DESI FUEL order has been <strong style="color: #22c55e;">successfully delivered</strong>.
+        We hope you love your products as much as we loved crafting them for you.
+      </p>
+
+      <p style="font-size: 15px; line-height: 1.7; color: #5C4A3D; margin: 0 0 24px;">
+        📎 Your detailed <strong>invoice is attached</strong> to this email as a PDF for your records.
+        Please keep it for future reference or warranty purposes.
+      </p>
+
+      <!-- Order Summary Box -->
+      <div style="background: #F8F5EF; border: 1px solid rgba(196,154,69,0.2); border-radius: 12px; padding: 20px; margin: 24px 0;">
+        <div style="font-size: 12px; font-weight: 700; color: #A67C2E; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">Order Summary</div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background: rgba(196,154,69,0.08);">
+              <th style="padding: 10px; text-align: left; color: #39251B;">Product</th>
+              <th style="padding: 10px; text-align: center; color: #39251B;">Qty</th>
+              <th style="padding: 10px; text-align: right; color: #39251B;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsList}
+          </tbody>
+        </table>
+
+        <div style="border-top: 2px solid #C49A45; margin-top: 12px; padding-top: 12px; display: flex; justify-content: space-between; font-size: 18px;">
+          <strong style="color: #39251B;">Grand Total</strong>
+          <strong style="color: #A67C2E;">₹${total}</strong>
+        </div>
+      </div>
+
+      <!-- Order Details -->
+      <div style="display: flex; gap: 16px; flex-wrap: wrap; margin: 20px 0;">
+        <div style="flex: 1; min-width: 140px; background: rgba(196,154,69,0.06); border-radius: 8px; padding: 12px;">
+          <div style="font-size: 11px; color: #8A7560; text-transform: uppercase;">Order ID</div>
+          <div style="font-size: 14px; font-weight: 700; color: #39251B; margin-top: 4px;">${orderId}</div>
+        </div>
+        <div style="flex: 1; min-width: 140px; background: rgba(196,154,69,0.06); border-radius: 8px; padding: 12px;">
+          <div style="font-size: 11px; color: #8A7560; text-transform: uppercase;">Order Date</div>
+          <div style="font-size: 14px; font-weight: 700; color: #39251B; margin-top: 4px;">${orderDate}</div>
+        </div>
+        <div style="flex: 1; min-width: 140px; background: rgba(196,154,69,0.06); border-radius: 8px; padding: 12px;">
+          <div style="font-size: 11px; color: #8A7560; text-transform: uppercase;">Items</div>
+          <div style="font-size: 14px; font-weight: 700; color: #39251B; margin-top: 4px;">${itemCount} products</div>
+        </div>
+      </div>
+
+      <!-- CTA Button -->
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://pradh-ecommerce.vercel.app/products" style="background: linear-gradient(135deg, #39251B, #5C4A3D); color: #F8F5EF; padding: 14px 36px; text-decoration: none; border-radius: 10px; font-size: 15px; font-weight: 700; display: inline-block; letter-spacing: 0.5px;">🛒 Shop More Products</a>
+      </div>
+
+      <!-- Review request -->
+      <div style="background: rgba(196,154,69,0.08); border-left: 4px solid #C49A45; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+        <div style="font-size: 14px; font-weight: 700; color: #39251B;">⭐ We'd Love Your Feedback!</div>
+        <div style="font-size: 13px; color: #5C4A3D; margin-top: 6px; line-height: 1.6;">
+          If you enjoyed your PRADH DESI FUEL, please take a moment to leave a review on our product page.
+          Your feedback helps us serve you better and helps other customers discover quality nutrition.
+        </div>
+      </div>
+
+      <p style="font-size: 15px; line-height: 1.7; color: #5C4A3D; margin: 24px 0 0;">
+        Thank you for choosing <strong style="color: #A67C2E;">PRADH DESI FUEL</strong>.
+        Stay strong, stay healthy, stay Desi! 💪
+      </p>
+
+      <p style="font-size: 14px; color: #39251B; margin: 20px 0 0;">
+        Warm regards,<br>
+        <strong>PRADH DESI FUEL Team</strong>
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background: #F8F5EF; padding: 24px 30px; text-align: center; border-top: 1px solid rgba(57,37,27,0.08);">
+      <div style="font-size: 13px; color: #39251B; font-weight: 600;">PRADH DESI FUEL</div>
+      <div style="font-size: 12px; color: #8A7560; margin-top: 6px;">
+        📍 Uttar Pradesh, India &nbsp;|&nbsp; 📞 +91 89799 93655 &nbsp;|&nbsp; 📧 pradhfoods@gmail.com
+      </div>
+      <div style="font-size: 11px; color: #8A7560; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(57,37,27,0.06);">
+        This is an automated email from PRADH DESI FUEL. Please do not reply to this email.<br>
+        For queries, contact us at pradhfoods@gmail.com
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
 
 // ============================================
 // DELIVERY SETTINGS
@@ -265,8 +725,7 @@ async function saveDeliverySettingsToDB() {
             freeDeliveryThreshold: result.freeDeliveryThreshold,
             lastUpdated: result.lastUpdated,
           },
-          null,
-          2
+          null, 2
         )
       );
     } catch (fileError) {}
@@ -325,8 +784,7 @@ app.put('/api/delivery-charge', verifyAdminToken, async (req, res) => {
             freeDeliveryThreshold: setting.freeDeliveryThreshold,
             lastUpdated: setting.lastUpdated,
           },
-          null,
-          2
+          null, 2
         )
       );
     } catch (fileError) {}
@@ -369,11 +827,18 @@ app.post('/api/auth/signup', async (req, res) => {
       isVerified: true,
     });
     await user.save();
-    const token = generateToken(user);
+    // 🛡️ Create session for this signup
+    const token = generateToken(user, 'pending');
+    const sessionId = await createSession(user._id, token, req);
+    const finalToken = generateToken(user, sessionId);
+    const tokenHash = crypto.createHash('sha256').update(finalToken).digest('hex');
+    await Session.updateOne({ sessionId }, { $set: { tokenHash } });
     res.json({
       success: true,
       message: 'Account created!',
-      token,
+      token: finalToken,
+      sessionId,
+      expiresIn: SESSION_DURATION_MS,
       user: {
         id: user._id,
         username: user.username,
@@ -405,11 +870,18 @@ app.post('/api/auth/login', async (req, res) => {
     }
     user.lastLogin = new Date();
     await user.save();
-    const token = generateToken(user);
+    // 🛡️ Create session for this login
+    const token = generateToken(user, 'pending');
+    const sessionId = await createSession(user._id, token, req);
+    const finalToken = generateToken(user, sessionId);
+    const tokenHash = crypto.createHash('sha256').update(finalToken).digest('hex');
+    await Session.updateOne({ sessionId }, { $set: { tokenHash } });
     res.json({
       success: true,
       message: 'Login successful!',
-      token,
+      token: finalToken,
+      sessionId,
+      expiresIn: SESSION_DURATION_MS,
       user: {
         id: user._id,
         username: user.username,
@@ -422,6 +894,92 @@ app.post('/api/auth/login', async (req, res) => {
         totalSpent: user.totalSpent,
       },
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// 🛡️ SESSION MANAGEMENT ENDPOINTS
+// ============================================================
+
+// GET /api/auth/sessions — list all active sessions for current user
+app.get('/api/auth/sessions', verifyToken, async (req, res) => {
+  try {
+    const sessions = await Session.find({
+      userId: req.user.id,
+      isActive: true,
+    }).sort({ lastActive: -1 });
+
+    res.json({
+      success: true,
+      sessions: sessions.map((s) => ({
+        sessionId: s.sessionId,
+        deviceType: s.deviceType,
+        browser: s.browser,
+        os: s.os,
+        location: s.location,
+        createdAt: s.createdAt,
+        lastActive: s.lastActive,
+        expiresAt: s.expiresAt,
+        isCurrent: s.sessionId === req.user.sessionId,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/auth/sessions/:id — revoke a specific session (logout from one device)
+app.delete('/api/auth/sessions/:id', verifyToken, async (req, res) => {
+  try {
+    const targetSessionId = req.params.id;
+    if (targetSessionId === req.user.sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Use logout to end your current session.',
+      });
+    }
+    const result = await Session.updateOne(
+      { sessionId: targetSessionId, userId: req.user.id, isActive: true },
+      { $set: { isActive: false } }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: 'Session not found or already revoked' });
+    }
+    res.json({ success: true, message: 'Session revoked successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/auth/sessions-all-others — logout from ALL other devices
+app.delete('/api/auth/sessions-all-others', verifyToken, async (req, res) => {
+  try {
+    const result = await Session.updateMany(
+      { userId: req.user.id, sessionId: { $ne: req.user.sessionId }, isActive: true },
+      { $set: { isActive: false } }
+    );
+    res.json({
+      success: true,
+      message: `${result.modifiedCount} other session(s) revoked`,
+      revokedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/auth/logout — logout current session (revokes + clears)
+app.post('/api/auth/logout', verifyToken, async (req, res) => {
+  try {
+    if (req.user.sessionId) {
+      await Session.updateOne(
+        { sessionId: req.user.sessionId },
+        { $set: { isActive: false } }
+      );
+    }
+    res.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -441,19 +999,38 @@ app.get('/api/auth/profile', verifyToken, async (req, res) => {
 
 app.put('/api/auth/profile', verifyToken, async (req, res) => {
   try {
-    const { phone, address, city, pincode } = req.body;
+    const { username, email, phone, address, city, pincode } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    if (phone) user.phone = phone;
-    if (address) user.address = address;
-    if (city) user.city = city;
-    if (pincode) user.pincode = pincode;
+
+    // 🆕 Allow username change (with duplicate check)
+    if (username && username.trim() && username !== user.username) {
+      const existing = await User.findOne({ username: username.trim(), _id: { $ne: user._id } });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Username already taken' });
+      }
+      user.username = username.trim();
+    }
+
+    // 🆕 Allow email change (with duplicate check)
+    if (email && email.trim() && email !== user.email) {
+      const existing = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: user._id } });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Email already registered' });
+      }
+      user.email = email.trim().toLowerCase();
+    }
+
+    if (phone !== undefined) user.phone = phone;
+    if (address !== undefined) user.address = address;
+    if (city !== undefined) user.city = city;
+    if (pincode !== undefined) user.pincode = pincode;
     await user.save();
     res.json({
       success: true,
-      message: 'Profile updated!',
+      message: 'Profile updated successfully!',
       user: {
         id: user._id,
         username: user.username,
@@ -462,8 +1039,231 @@ app.put('/api/auth/profile', verifyToken, async (req, res) => {
         address: user.address,
         city: user.city,
         pincode: user.pincode,
+        addresses: user.addresses || [],
+        preferences: user.preferences || {},
       },
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// 🆕 SAVED ADDRESSES — CRUD endpoints
+// Users can save multiple addresses (Home, Office, etc.)
+// and select one at checkout (no need to type every time)
+// ============================================================
+
+// GET /api/auth/addresses — list all saved addresses
+app.get('/api/auth/addresses', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('addresses');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    // Sort: default address first, then by createdAt
+    const addresses = (user.addresses || []).sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    res.json({ success: true, addresses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/auth/addresses — add a new address
+app.post('/api/auth/addresses', verifyToken, async (req, res) => {
+  try {
+    const { label, name, phone, address, city, pincode, isDefault } = req.body;
+    if (!name || !phone || !address || !city || !pincode) {
+      return res.status(400).json({ success: false, message: 'Name, phone, address, city, pincode are required' });
+    }
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const newAddr = {
+      id: 'ADDR' + Date.now().toString().slice(-8) + Math.random().toString(36).slice(2, 5),
+      label: label || 'Home',
+      name: name.trim(),
+      phone: phone.trim(),
+      address: address.trim(),
+      city: city.trim(),
+      pincode: pincode.trim(),
+      isDefault: false,
+      createdAt: new Date(),
+    };
+
+    // If this is the first address, make it default
+    // OR if isDefault is explicitly set to true
+    if (isDefault || !user.addresses || user.addresses.length === 0) {
+      // Unset all other defaults
+      user.addresses.forEach((a) => { a.isDefault = false; });
+      newAddr.isDefault = true;
+    }
+
+    user.addresses.push(newAddr);
+    await user.save();
+
+    console.log(`✅ Address added for ${user.username}: ${newAddr.label} (${newAddr.id})`);
+    res.json({ success: true, message: 'Address added!', address: newAddr, addresses: user.addresses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/auth/addresses/:id — update an existing address
+app.put('/api/auth/addresses/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { label, name, phone, address, city, pincode } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const addr = user.addresses.id(id) || user.addresses.find((a) => a.id === id);
+    if (!addr) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    if (label !== undefined) addr.label = label;
+    if (name !== undefined) addr.name = name.trim();
+    if (phone !== undefined) addr.phone = phone.trim();
+    if (address !== undefined) addr.address = address.trim();
+    if (city !== undefined) addr.city = city.trim();
+    if (pincode !== undefined) addr.pincode = pincode.trim();
+
+    await user.save();
+    console.log(`✅ Address updated: ${id}`);
+    res.json({ success: true, message: 'Address updated!', address: addr, addresses: user.addresses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/auth/addresses/:id — delete an address
+app.delete('/api/auth/addresses/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const initialLength = user.addresses.length;
+    user.addresses = user.addresses.filter((a) => a.id !== id && String(a._id) !== id);
+
+    if (user.addresses.length === initialLength) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    // If deleted address was default, make the first remaining one default
+    const hadDefault = user.addresses.some((a) => a.isDefault);
+    if (!hadDefault && user.addresses.length > 0) {
+      user.addresses[0].isDefault = true;
+    }
+
+    await user.save();
+    console.log(`✅ Address deleted: ${id}`);
+    res.json({ success: true, message: 'Address deleted', addresses: user.addresses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/auth/addresses/:id/default — set an address as default
+app.put('/api/auth/addresses/:id/default', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    let found = false;
+    user.addresses.forEach((a) => {
+      if (a.id === id || String(a._id) === id) {
+        a.isDefault = true;
+        found = true;
+      } else {
+        a.isDefault = false;
+      }
+    });
+
+    if (!found) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    await user.save();
+    console.log(`✅ Default address set: ${id}`);
+    res.json({ success: true, message: 'Default address updated', addresses: user.addresses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// 🆕 USER PREFERENCES — functional Settings tab
+// ============================================================
+
+// GET /api/auth/preferences — get user's preferences
+app.get('/api/auth/preferences', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('preferences');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const prefs = user.preferences || {
+      emailNotifications: true,
+      smsAlerts: true,
+      marketingEmails: false,
+      orderUpdates: true,
+      language: 'en',
+      theme: 'light',
+    };
+    res.json({ success: true, preferences: prefs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/auth/preferences — update user's preferences
+app.put('/api/auth/preferences', verifyToken, async (req, res) => {
+  try {
+    const { emailNotifications, smsAlerts, marketingEmails, orderUpdates, language, theme } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (!user.preferences) {
+      user.preferences = {
+        emailNotifications: true,
+        smsAlerts: true,
+        marketingEmails: false,
+        orderUpdates: true,
+        language: 'en',
+        theme: 'light',
+      };
+    }
+
+    if (emailNotifications !== undefined) user.preferences.emailNotifications = emailNotifications;
+    if (smsAlerts !== undefined) user.preferences.smsAlerts = smsAlerts;
+    if (marketingEmails !== undefined) user.preferences.marketingEmails = marketingEmails;
+    if (orderUpdates !== undefined) user.preferences.orderUpdates = orderUpdates;
+    if (language !== undefined) user.preferences.language = language;
+    if (theme !== undefined) user.preferences.theme = theme;
+
+    // Mark preferences as modified (Mongoose nested object change detection)
+    user.markModified('preferences');
+    await user.save();
+
+    console.log(`✅ Preferences updated for ${user.username}`);
+    res.json({ success: true, message: 'Settings updated!', preferences: user.preferences });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -634,8 +1434,6 @@ app.get('/api/admin/user/:username', verifyAdminToken, async (req, res) => {
 // ============================================
 // PRODUCT ROUTES
 // ============================================
-// NOTE: This route is also used by the PUBLIC storefront (Home.jsx, Products.jsx, ProductDetail.jsx)
-// To avoid breaking the storefront, we keep it public BUT only return active products.
 app.get('/api/products', async (req, res) => {
   try {
     const products = await Product.find({ status: 'active' });
@@ -645,7 +1443,6 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// Admin: list ALL products (including inactive) — requires admin token.
 app.get('/api/admin/products', verifyAdminToken, async (req, res) => {
   try {
     const products = await Product.find();
@@ -655,7 +1452,6 @@ app.get('/api/admin/products', verifyAdminToken, async (req, res) => {
   }
 });
 
-// Public: get a single product by id (only if active).
 app.get('/api/products/:id', async (req, res) => {
   try {
     const product = await Product.findOne({ id: req.params.id, status: 'active' });
@@ -663,6 +1459,72 @@ app.get('/api/products/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
     res.json({ success: true, product });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 🤖 SMART RECOMMENDATIONS — related products endpoint
+app.get('/api/products/:id/related', async (req, res) => {
+  try {
+    const currentProduct = await Product.findOne({ id: req.params.id, status: 'active' });
+    if (!currentProduct) {
+      return res.status(404).json({ success: false, error: 'Product not found' });
+    }
+    const limit = Math.min(parseInt(req.query.limit) || 8, 12);
+    const currentCategory = currentProduct.category;
+
+    const sameCategoryInStock = await Product.find({
+      id: { $ne: req.params.id },
+      status: 'active',
+      category: currentCategory,
+      stock: { $gt: 0 },
+    }).limit(limit);
+
+    let related = [...sameCategoryInStock];
+    if (related.length < limit) {
+      const sameCategoryOOS = await Product.find({
+        id: { $ne: req.params.id, $nin: related.map((p) => p.id) },
+        status: 'active',
+        category: currentCategory,
+        stock: { $lte: 0 },
+      }).limit(limit - related.length);
+      related = [...related, ...sameCategoryOOS];
+    }
+
+    if (related.length < limit) {
+      const otherCategories = await Product.find({
+        id: { $ne: req.params.id, $nin: related.map((p) => p.id) },
+        status: 'active',
+        category: { $ne: currentCategory },
+        stock: { $gt: 0 },
+      }).limit(limit - related.length);
+      related = [...related, ...otherCategories];
+    }
+
+    if (related.length < limit) {
+      const remaining = await Product.find({
+        id: { $ne: req.params.id, $nin: related.map((p) => p.id) },
+        status: 'active',
+      }).limit(limit - related.length);
+      related = [...related, ...remaining];
+    }
+
+    res.json({
+      success: true,
+      related: related.map((p) => ({
+        id: p.id,
+        _id: p._id,
+        name: p.name,
+        price: parseFloat(p.price),
+        originalPrice: p.originalPrice ? parseFloat(p.originalPrice) : null,
+        image: p.image,
+        category: p.category,
+        stock: p.stock ?? 0,
+        badge: p.badge || null,
+        inStock: (p.stock ?? 0) > 0,
+      })),
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -830,7 +1692,7 @@ app.get('/api/products/:id/purchase-limit', async (req, res) => {
 });
 
 // ============================================
-// BULK PURCHASE LIMITS (cart ke liye)
+// BULK PURCHASE LIMITS
 // ============================================
 app.post('/api/purchase-limits/bulk', verifyToken, async (req, res) => {
   try {
@@ -889,9 +1751,6 @@ app.post('/api/purchase-limits/bulk', verifyToken, async (req, res) => {
 // ============================================
 // ORDER ROUTES
 // ============================================
-// Admin: list ALL orders (with full customer PII) — requires admin token.
-// Kept the legacy path /get-orders for backward compat with the admin frontend,
-// but now protected. Frontend should migrate to /api/admin/orders.
 app.get('/get-orders', verifyAdminToken, async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
@@ -901,7 +1760,6 @@ app.get('/get-orders', verifyAdminToken, async (req, res) => {
   }
 });
 
-// ✅ VALID STATUS TRANSITIONS — prevent invalid jumps
 const VALID_TRANSITIONS = {
   'pending': ['confirmed', 'cancelled', 'paid'],
   'paid': ['confirmed', 'cancelled'],
@@ -918,7 +1776,6 @@ const VALID_TRANSITIONS = {
   'rejected': [],
 };
 
-// ✅ STATUS DISPLAY INFO
 const STATUS_INFO = {
   'pending': { label: 'Order Placed', icon: 'fa-box', color: '#C49A45', desc: 'Your order has been placed' },
   'paid': { label: 'Payment Confirmed', icon: 'fa-credit-card', color: '#22c55e', desc: 'Payment verified successfully' },
@@ -935,13 +1792,9 @@ const STATUS_INFO = {
   'rejected': { label: 'Return Rejected', icon: 'fa-times', color: '#ef4444', desc: 'Return request rejected' },
 };
 
-// ✅ NORMAL DELIVERY FLOW (for timeline display)
 const DELIVERY_FLOW = ['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'];
-
-// ✅ EXCEPTIONAL STATUSES (shown separately, not in normal timeline)
 const EXCEPTIONAL_STATUSES = ['cancelled', 'return_requested', 'returned', 'refund_initiated', 'refunded', 'rejected'];
 
-// Admin: change order status — ENHANCED with tracking history + validation
 app.put('/api/orders/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -950,7 +1803,6 @@ app.put('/api/orders/:id', verifyAdminToken, async (req, res) => {
     const order = await Order.findOne({ id });
     if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
 
-    // ✅ Validate status transition
     if (status && status !== order.status) {
       const allowed = VALID_TRANSITIONS[order.status] || [];
       if (!allowed.includes(status)) {
@@ -960,7 +1812,6 @@ app.put('/api/orders/:id', verifyAdminToken, async (req, res) => {
         });
       }
 
-      // Add to tracking history
       const info = STATUS_INFO[status] || { desc: `Status updated to ${status}` };
       order.trackingHistory.push({
         status,
@@ -983,7 +1834,6 @@ app.put('/api/orders/:id', verifyAdminToken, async (req, res) => {
   }
 });
 
-// ✅ NEW: Admin update shipping info (tracking number, partner, ETA)
 app.put('/api/orders/:id/tracking', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1006,6 +1856,7 @@ app.put('/api/orders/:id/tracking', verifyAdminToken, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 // ============================================
 // CANCEL ORDER (user)
 // ============================================
@@ -1020,7 +1871,6 @@ app.post('/api/orders/:id/cancel', verifyToken, async (req, res) => {
     const order = await Order.findOne({ id });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
-    // Ownership check
     const isOwner =
       order.userId === String(user._id) ||
       order.customer?.phone === user.phone ||
@@ -1030,7 +1880,6 @@ app.post('/api/orders/:id/cancel', verifyToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not your order' });
     }
 
-    // Can only cancel if pending/paid (not shipped/delivered/cancelled)
     if (!['pending', 'paid'].includes(order.status)) {
       return res.status(400).json({
         success: false,
@@ -1043,7 +1892,6 @@ app.post('/api/orders/:id/cancel', verifyToken, async (req, res) => {
     order.cancelled_at = new Date();
     await order.save();
 
-    // Restore stock
     for (const item of order.items || []) {
       const product = await Product.findOne({ id: item.id });
       if (product) {
@@ -1052,7 +1900,6 @@ app.post('/api/orders/:id/cancel', verifyToken, async (req, res) => {
       }
     }
 
-    // Update user stats
     if (user.orderCount > 0) user.orderCount -= 1;
     if (user.totalSpent > 0) {
       user.totalSpent = Math.max(0, (user.totalSpent || 0) - (order.total || 0));
@@ -1068,7 +1915,7 @@ app.post('/api/orders/:id/cancel', verifyToken, async (req, res) => {
 });
 
 // ============================================
-// REQUEST RETURN (user) — only for delivered orders
+// REQUEST RETURN (user)
 // ============================================
 app.post('/api/orders/:id/return', verifyToken, async (req, res) => {
   try {
@@ -1097,7 +1944,6 @@ app.post('/api/orders/:id/return', verifyToken, async (req, res) => {
       });
     }
 
-    // 7-day return window check
     const deliveredAt = order.date ? new Date(order.date) : new Date(order.createdAt);
     const daysSinceDelivered = Math.floor((Date.now() - deliveredAt.getTime()) / (1000 * 60 * 60 * 24));
     if (daysSinceDelivered > 7) {
@@ -1107,7 +1953,6 @@ app.post('/api/orders/:id/return', verifyToken, async (req, res) => {
       });
     }
 
-    // Mark as return requested (we'll track in a field)
     order.status = 'return_requested';
     order.cancellation_reason = reason?.trim() || 'Return requested by user';
     order.cancelled_at = new Date();
@@ -1124,7 +1969,6 @@ app.post('/api/orders/:id/return', verifyToken, async (req, res) => {
 // ============================================
 // COUPON ROUTES
 // ============================================
-// Admin: list ALL coupons (including expired) — requires admin token.
 app.get('/api/coupons', verifyAdminToken, async (req, res) => {
   try {
     const coupons = await Coupon.find();
@@ -1134,7 +1978,6 @@ app.get('/api/coupons', verifyAdminToken, async (req, res) => {
   }
 });
 
-// Admin: create a new coupon — requires admin token.
 app.post('/api/coupons', verifyAdminToken, async (req, res) => {
   try {
     const { code, discount, expiry } = req.body;
@@ -1164,7 +2007,6 @@ app.post('/api/coupons/validate', async (req, res) => {
   }
 });
 
-// Admin: delete a coupon — requires admin token.
 app.delete('/api/coupons/:code', verifyAdminToken, async (req, res) => {
   try {
     const { code } = req.params;
@@ -1176,103 +2018,57 @@ app.delete('/api/coupons/:code', verifyAdminToken, async (req, res) => {
 });
 
 // ============================================
-// GET APPROVED REVIEWS FOR A PRODUCT
+// REVIEWS
 // ============================================
 app.get('/api/reviews/product/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
-
-    const reviews = await Review.find({
-      productId,
-      status: 'approved',
-    }).sort({ createdAt: -1 });
-
+    const reviews = await Review.find({ productId, status: 'approved' }).sort({ createdAt: -1 });
     const total = reviews.length;
-    const avgRating = total > 0
-      ? Number((reviews.reduce((s, r) => s + r.rating, 0) / total).toFixed(1))
-      : 0;
-
+    const avgRating = total > 0 ? Number((reviews.reduce((s, r) => s + r.rating, 0) / total).toFixed(1)) : 0;
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    reviews.forEach((r) => {
-      if (distribution[r.rating] !== undefined) distribution[r.rating]++;
-    });
-
-    res.json({
-      success: true,
-      reviews,
-      total,
-      avgRating,
-      distribution,
-    });
+    reviews.forEach((r) => { if (distribution[r.rating] !== undefined) distribution[r.rating]++; });
+    res.json({ success: true, reviews, total, avgRating, distribution });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ============================================
-// GET RATINGS FOR MULTIPLE PRODUCTS (bulk)
-// ============================================
 app.get('/api/reviews/ratings/all', async (req, res) => {
   try {
     const reviews = await Review.find({ status: 'approved' }).lean();
     const allProducts = await Product.find().lean();
-
-    console.log(`📊 Bulk ratings: ${reviews.length} approved reviews, ${allProducts.length} products`);
-
     const idLookup = {};
     allProducts.forEach((p) => {
       const canonical = p.id || String(p._id);
       idLookup[String(p._id)] = canonical;
       if (p.id) idLookup[p.id] = canonical;
     });
-
     const agg = {};
-    const unmapped = [];
-
     reviews.forEach((r) => {
       const rawPid = String(r.productId || '').trim();
       if (!rawPid) return;
       const canonicalPid = idLookup[rawPid] || rawPid;
-      if (!idLookup[rawPid]) unmapped.push(rawPid);
-
       if (!agg[canonicalPid]) agg[canonicalPid] = { sum: 0, count: 0 };
       agg[canonicalPid].sum += r.rating;
       agg[canonicalPid].count += 1;
     });
-
     const result = {};
     Object.entries(agg).forEach(([pid, { sum, count }]) => {
-      const payload = {
-        avgRating: count > 0 ? Number((sum / count).toFixed(1)) : 0,
-        totalReviews: count,
-      };
+      const payload = { avgRating: count > 0 ? Number((sum / count).toFixed(1)) : 0, totalReviews: count };
       result[pid] = payload;
-
-      const product = allProducts.find(
-        (p) => String(p._id) === pid || p.id === pid
-      );
+      const product = allProducts.find((p) => String(p._id) === pid || p.id === pid);
       if (product) {
         result[String(product._id)] = payload;
         if (product.id) result[product.id] = payload;
       }
     });
-
-    console.log(`✅ Ratings keys returned:`, Object.keys(result));
-    if (unmapped.length > 0) {
-      console.log(`⚠️ Unmatched productIds in reviews:`, [...new Set(unmapped)]);
-    }
-
     res.json({ success: true, ratings: result });
   } catch (error) {
-    console.error('❌ Bulk ratings error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ============================================
-// REVIEW ROUTES
-// ============================================
-// Admin: list ALL reviews (including pending) — requires admin token.
 app.get('/api/reviews', verifyAdminToken, async (req, res) => {
   try {
     const reviews = await Review.find();
@@ -1304,15 +2100,12 @@ app.post('/api/reviews', async (req, res) => {
   }
 });
 
-// Admin: approve/reject/edit a review — requires admin token.
 app.put('/api/reviews/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, comment, rating } = req.body;
     const review = await Review.findOne({ id });
-    if (!review) {
-      return res.status(404).json({ success: false, error: 'Review not found' });
-    }
+    if (!review) return res.status(404).json({ success: false, error: 'Review not found' });
     if (status !== undefined) review.status = status;
     if (comment !== undefined) review.comment = comment;
     if (rating !== undefined) review.rating = parseInt(rating);
@@ -1324,7 +2117,6 @@ app.put('/api/reviews/:id', verifyAdminToken, async (req, res) => {
   }
 });
 
-// Admin: delete a review — requires admin token.
 app.delete('/api/reviews/:id', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1338,17 +2130,11 @@ app.delete('/api/reviews/:id', verifyAdminToken, async (req, res) => {
 app.get('/api/reviews/stats/:productId', async (req, res) => {
   try {
     const reviews = await Review.find({ productId: req.params.productId, status: 'approved' });
-    const stats = {
-      total: reviews.length,
-      averageRating: 0,
-      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-    };
+    const stats = { total: reviews.length, averageRating: 0, ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
     if (reviews.length > 0) {
       const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
       stats.averageRating = (totalRating / reviews.length).toFixed(1);
-      reviews.forEach((r) => {
-        if (stats.ratingDistribution[r.rating]) stats.ratingDistribution[r.rating]++;
-      });
+      reviews.forEach((r) => { if (stats.ratingDistribution[r.rating]) stats.ratingDistribution[r.rating]++; });
     }
     res.json({ success: true, stats });
   } catch (error) {
@@ -1356,21 +2142,15 @@ app.get('/api/reviews/stats/:productId', async (req, res) => {
   }
 });
 
-
 // ============================================
 // RETURN / REPLACE REQUEST ROUTES
 // ============================================
-
-// ✅ CREATE — user submits request (login optional)
 app.post('/api/return-requests', async (req, res) => {
   try {
     const { name, email, phone, orderId, productName, reason, issueDate, description, requestType } = req.body;
-
     if (!name || !phone || !orderId || !reason || !description) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
-
-    // Optional: link to logged-in user if token present
     let userId = null;
     const token = req.headers.authorization?.split(' ')[1];
     if (token) {
@@ -1379,7 +2159,6 @@ app.post('/api/return-requests', async (req, res) => {
         userId = String(decoded.id);
       } catch {}
     }
-
     const request = new ReturnRequest({
       id: 'RET-' + Date.now().toString().slice(-8),
       userId,
@@ -1394,10 +2173,8 @@ app.post('/api/return-requests', async (req, res) => {
       requestType: requestType || 'return',
       status: 'pending',
     });
-
     await request.save();
     console.log(`📦 Return request created: ${request.id} by ${request.name}`);
-
     res.json({ success: true, message: 'Request submitted! We will contact you on WhatsApp within 24 hours.', request });
   } catch (error) {
     console.error('Return request error:', error);
@@ -1405,7 +2182,6 @@ app.post('/api/return-requests', async (req, res) => {
   }
 });
 
-// ✅ GET ALL (admin) — requires admin token.
 app.get('/api/return-requests', verifyAdminToken, async (req, res) => {
   try {
     const requests = await ReturnRequest.find().sort({ createdAt: -1 });
@@ -1415,15 +2191,10 @@ app.get('/api/return-requests', verifyAdminToken, async (req, res) => {
   }
 });
 
-// ✅ GET BY ID — admin can view any; user can view own (ownership checked below).
-// Auth is optional: if a user token is provided, we verify ownership; if an admin
-// token is provided, we allow access; if no token, we require the caller to be admin.
 app.get('/api/return-requests/:id', async (req, res) => {
   try {
     const request = await ReturnRequest.findOne({ id: req.params.id });
     if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
-
-    // Determine caller identity from token (optional)
     const token = req.headers.authorization?.split(' ')[1] || req.headers['x-auth-token'];
     let isAdmin = false;
     let userId = null;
@@ -1434,35 +2205,27 @@ app.get('/api/return-requests/:id', async (req, res) => {
         userId = String(decoded.id);
       } catch {}
     }
-
-    // Authorization: admin OR owner (matching userId) OR same phone
-    const isOwner =
-      (userId && request.userId === userId) ||
-      (userId && false); // phone matching would require fetching the user; keep simple
+    const isOwner = (userId && request.userId === userId);
     if (!isAdmin && !isOwner) {
       return res.status(403).json({ success: false, message: 'Not authorized to view this request' });
     }
-
     res.json({ success: true, request });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ✅ UPDATE STATUS (admin approve/reject) — requires admin token.
 app.put('/api/return-requests/:id', verifyAdminToken, async (req, res) => {
   try {
     const { status, adminNote } = req.body;
     const request = await ReturnRequest.findOne({ id: req.params.id });
     if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
-
     if (status && ['pending', 'approved', 'rejected', 'resolved'].includes(status)) {
       request.status = status;
     }
     if (adminNote !== undefined) request.adminNote = adminNote;
     request.updatedAt = new Date();
     await request.save();
-
     console.log(`✅ Return request ${request.id} → ${request.status}`);
     res.json({ success: true, message: 'Request updated', request });
   } catch (error) {
@@ -1470,7 +2233,6 @@ app.put('/api/return-requests/:id', verifyAdminToken, async (req, res) => {
   }
 });
 
-// ✅ DELETE (admin) — requires admin token.
 app.delete('/api/return-requests/:id', verifyAdminToken, async (req, res) => {
   try {
     await ReturnRequest.deleteOne({ id: req.params.id });
@@ -1506,7 +2268,6 @@ app.post('/verify-payment', verifyToken, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderDetails } = req.body;
 
-    // Signature verify
     const body = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
@@ -1517,13 +2278,11 @@ app.post('/verify-payment', verifyToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid payment signature' });
     }
 
-    // User fetch
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Purchase limit check (server-side)
     const items = orderDetails?.items || [];
     for (const item of items) {
       const product = await Product.findOne({ id: item.id });
@@ -1558,7 +2317,6 @@ app.post('/verify-payment', verifyToken, async (req, res) => {
       }
     }
 
-    // Save order
     const orderId = 'ORD' + Date.now().toString().slice(-8);
     const newOrder = new Order({
       id: orderId,
@@ -1584,12 +2342,10 @@ app.post('/verify-payment', verifyToken, async (req, res) => {
     });
     await newOrder.save();
 
-    // Update user stats
     user.orderCount = (user.orderCount || 0) + 1;
     user.totalSpent = (user.totalSpent || 0) + (newOrder.total || 0);
     await user.save();
 
-    // Update stock
     await updateStockAfterOrder(items);
 
     console.log('✅ Order saved:', orderId);
@@ -1633,9 +2389,7 @@ app.get('/api/invoice/:orderId', async (req, res) => {
     doc.moveTo(50, y).lineTo(550, y).strokeColor(gold).lineWidth(2).stroke();
     y += 25;
 
-    const leftX = 50,
-      rightX = 320,
-      lineHeight = 20;
+    const leftX = 50, rightX = 320, lineHeight = 20;
     doc.fontSize(11).font('Helvetica-Bold').fillColor(dark).text('ORDER DETAILS', leftX, y);
     y += 18;
     doc.font('Helvetica').fontSize(9).fillColor(gray);
@@ -1675,11 +2429,7 @@ app.get('/api/invoice/:orderId', async (req, res) => {
     doc.moveTo(50, y).lineTo(550, y).strokeColor('#e2e8f0').lineWidth(1).stroke();
     y += 20;
 
-    const tableX = 50,
-      col1 = 60,
-      col2 = 280,
-      col3 = 380,
-      col4 = 460;
+    const tableX = 50, col1 = 60, col2 = 280, col3 = 380, col4 = 460;
     doc.fillColor(lightGray).rect(tableX, y, 500, 22).fill();
     doc.fillColor(dark).font('Helvetica-Bold').fontSize(9);
     doc.text('Product', col1, y + 5);
@@ -1713,16 +2463,13 @@ app.get('/api/invoice/:orderId', async (req, res) => {
     const discount = order.discount || 0;
     const grandTotal = subtotal + deliveryCharge - discount;
 
-    const totalX = 500,
-      labelX = 400;
+    const totalX = 500, labelX = 400;
     doc.font('Helvetica').fontSize(10);
     doc.fillColor(gray).text('Subtotal:', labelX, y, { align: 'right' });
     doc.fillColor(dark).text('₹' + subtotal.toFixed(0), totalX, y, { align: 'right' });
     y += 22;
     doc.fillColor(gray).text('Delivery:', labelX, y, { align: 'right' });
-    doc
-      .fillColor(deliveryCharge === 0 ? '#22c55e' : dark)
-      .text(deliveryCharge === 0 ? 'FREE' : '₹' + deliveryCharge.toFixed(0), totalX, y, { align: 'right' });
+    doc.fillColor(deliveryCharge === 0 ? '#22c55e' : dark).text(deliveryCharge === 0 ? 'FREE' : '₹' + deliveryCharge.toFixed(0), totalX, y, { align: 'right' });
     y += 22;
     if (order.coupon) {
       doc.fillColor(gray).text('Discount (' + order.coupon + '):', labelX, y, { align: 'right' });
@@ -1732,20 +2479,11 @@ app.get('/api/invoice/:orderId', async (req, res) => {
     y += 8;
     doc.moveTo(300, y).lineTo(550, y).strokeColor(gold).lineWidth(1.5).stroke();
     y += 10;
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(16)
-      .fillColor(gold)
-      .text('Grand Total:', labelX + 400, y, { align: 'right' })
-      .text('₹' + grandTotal.toFixed(0), totalX + 400, y, { align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(16).fillColor(gold).text('Grand Total:', labelX + 400, y, { align: 'right' }).text('₹' + grandTotal.toFixed(0), totalX + 400, y, { align: 'right' });
     y += 30;
 
     if (order.coupon) {
-      doc
-        .fillColor('#22c55e')
-        .font('Helvetica')
-        .fontSize(9)
-        .text('🎉 Coupon Applied: ' + order.coupon + ' (' + (order.discount || 0) + '% off)', 50, y);
+      doc.fillColor('#22c55e').font('Helvetica').fontSize(9).text('🎉 Coupon Applied: ' + order.coupon + ' (' + (order.discount || 0) + '% off)', 50, y);
       y += 20;
     }
 
@@ -1756,27 +2494,16 @@ app.get('/api/invoice/:orderId', async (req, res) => {
     }
 
     const statusColors = {
-      pending: '#facc15',
-      paid: '#22c55e',
-      shipped: '#3b82f6',
-      delivered: '#8b5cf6',
-      cancelled: '#ef4444',
+      pending: '#facc15', paid: '#22c55e', shipped: '#3b82f6', delivered: '#8b5cf6', cancelled: '#ef4444',
     };
     const statusColor = statusColors[order.status] || gray;
     doc.fillColor(statusColor).roundedRect(50, y, 130, 22, 4).fill();
-    doc
-      .fillColor('#ffffff')
-      .font('Helvetica-Bold')
-      .fontSize(9)
-      .text('STATUS: ' + (order.status || 'Pending').toUpperCase(), 58, y + 5);
+    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9).text('STATUS: ' + (order.status || 'Pending').toUpperCase(), 58, y + 5);
     y += 35;
 
     const footerY = 770;
     doc.moveTo(50, footerY).lineTo(550, footerY).strokeColor(gold).lineWidth(1).stroke();
-    doc
-      .fontSize(8)
-      .font('Helvetica')
-      .fillColor(gray)
+    doc.fontSize(8).font('Helvetica').fillColor(gray)
       .text('💪 Thank you for choosing PRADH Desi Fuel!', 50, footerY + 12, { align: 'center' })
       .text('📞 +91 8979993655  |  📧 support@pradh.com', 50, footerY + 26, { align: 'center' })
       .text('Generated: ' + new Date().toLocaleString(), 50, footerY + 40, { align: 'center' });
@@ -1792,7 +2519,6 @@ app.get('/api/invoice/:orderId', async (req, res) => {
 // ============================================
 // ORDER TRACKING API
 // ============================================
-// ✅ ENHANCED ORDER TRACKING — with full tracking history, shipping info
 app.get('/api/order/track/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -1801,11 +2527,9 @@ app.get('/api/order/track/:orderId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // ✅ Build timeline from trackingHistory (if exists) or fall back to status-based
     const currentStatus = order.status;
     const isExceptional = EXCEPTIONAL_STATUSES.includes(currentStatus);
 
-    // ✅ If trackingHistory exists, use it; otherwise build from status
     let historyMap = {};
     if (order.trackingHistory && order.trackingHistory.length > 0) {
       order.trackingHistory.forEach((h) => {
@@ -1813,7 +2537,6 @@ app.get('/api/order/track/:orderId', async (req, res) => {
       });
     }
 
-    // ✅ Build normal delivery timeline
     const deliveryTimeline = DELIVERY_FLOW.map((statusKey) => {
       const info = STATUS_INFO[statusKey];
       const history = historyMap[statusKey];
@@ -1832,7 +2555,6 @@ app.get('/api/order/track/:orderId', async (req, res) => {
       };
     });
 
-    // ✅ Build exceptional status info (if applicable)
     let exceptionalStatus = null;
     if (isExceptional) {
       const info = STATUS_INFO[currentStatus];
@@ -1848,7 +2570,6 @@ app.get('/api/order/track/:orderId', async (req, res) => {
       };
     }
 
-    // ✅ Calculate progress
     let progress = 0;
     if (!isExceptional) {
       const currentIdx = DELIVERY_FLOW.indexOf(currentStatus);
@@ -1870,17 +2591,14 @@ app.get('/api/order/track/:orderId', async (req, res) => {
         paymentMethod: order.customer?.paymentMethod || 'N/A',
         paymentId: order.payment_id || null,
       },
-      // Shipping info
       trackingNumber: order.trackingNumber || '',
       shippingPartner: order.shippingPartner || '',
       estimatedDelivery: order.estimatedDelivery || null,
-      // Timeline
       timeline: deliveryTimeline,
       exceptionalStatus,
       isExceptional,
       currentStatusIndex: DELIVERY_FLOW.indexOf(currentStatus),
       progress,
-      // Full history
       trackingHistory: order.trackingHistory || [],
     });
   } catch (error) {
@@ -1978,6 +2696,108 @@ app.get('/api/admin/verify', verifyAdminToken, async (req, res) => {
 
 app.post('/api/admin/logout', verifyAdminToken, async (req, res) => {
   res.json({ success: true, message: 'Logout successful' });
+});
+
+// ============================================================
+// 📧 EMAIL CENTER — Send delivery email with invoice PDF
+// Admin clicks "Send Email" → customer gets branded email + PDF invoice
+// ============================================================
+
+// POST /api/admin/send-delivery-email — send delivery confirmation + invoice
+app.post('/api/admin/send-delivery-email', verifyAdminToken, async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ success: false, error: 'Order ID is required' });
+    }
+
+    // Check email transporter is configured
+    if (!emailTransporter) {
+      return res.status(500).json({
+        success: false,
+        error: 'Email not configured. Set EMAIL_USER and EMAIL_PASS in .env (Gmail App Password required).',
+      });
+    }
+
+    // Fetch order
+    const order = await Order.findOne({ id: orderId });
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+
+    // Check customer email exists
+    const customerEmail = order.customer?.email;
+    if (!customerEmail || customerEmail === 'N/A') {
+      return res.status(400).json({
+        success: false,
+        error: 'Customer email not found in order. Cannot send email.',
+      });
+    }
+
+    console.log(`📧 Sending delivery email for order ${orderId} to ${customerEmail}`);
+
+    // Generate invoice PDF buffer
+    const pdfBuffer = await generateInvoicePdfBuffer(order);
+
+    // Generate HTML email body
+    const htmlBody = generateDeliveryEmailHtml(order);
+
+    // Send email
+    const mailOptions = {
+      from: `"PRADH DESI FUEL" <${EMAIL_USER}>`,
+      to: customerEmail,
+      subject: `🎉 Your Order ${orderId} Delivered! — PRADH DESI FUEL`,
+      html: htmlBody,
+      attachments: [
+        {
+          filename: `Invoice-${orderId}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    };
+
+    await emailTransporter.sendMail(mailOptions);
+
+    console.log(`✅ Delivery email sent for order ${orderId} to ${customerEmail}`);
+    res.json({
+      success: true,
+      message: `Email sent successfully to ${customerEmail}`,
+      sentTo: customerEmail,
+    });
+  } catch (error) {
+    console.error('❌ Email send error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to send email',
+    });
+  }
+});
+
+// GET /api/admin/email-status — check if email is configured
+app.get('/api/admin/email-status', verifyAdminToken, async (req, res) => {
+  res.json({
+    success: true,
+    configured: !!emailTransporter,
+    email: EMAIL_USER,
+  });
+});
+
+// GET /api/admin/preview-email/:orderId — preview email HTML (no sending)
+// Admin can see exactly what the customer will receive before sending
+app.get('/api/admin/preview-email/:orderId', verifyAdminToken, async (req, res) => {
+  try {
+    const order = await Order.findOne({ id: req.params.orderId });
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    const html = generateDeliveryEmailHtml(order);
+    // Return as HTML page (browser renders it directly)
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // ============================================
@@ -2111,23 +2931,8 @@ app.put('/api/announcement-settings', verifyAdminToken, async (req, res) => {
 app.listen(PORT, () => {
   console.log('\n🚀 Server running on http://localhost:' + PORT);
   console.log('📦 Database: MongoDB Atlas');
+  console.log('🛡️  Security: 24h session expiry + device tracking enabled');
   console.log('✅ Current Delivery Charge: ₹' + deliverySettings.deliveryCharge);
   console.log('✅ Free Delivery Threshold: ₹' + deliverySettings.freeDeliveryThreshold);
   console.log('✅ Server is ready!\n');
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// (wheel settings routes are above, before app.listen)

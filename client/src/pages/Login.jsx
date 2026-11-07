@@ -61,6 +61,13 @@ const Login = () => {
         setSuccess('✅ Login successful! Redirecting...');
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        // 🛡️ Save session ID for device tracking + multi-device logout
+        if (data.sessionId) {
+          localStorage.setItem('sessionId', data.sessionId);
+        }
+        if (data.expiresIn) {
+          localStorage.setItem('sessionExpiresAt', Date.now() + data.expiresIn);
+        }
 
         // Remember me
         if (rememberMe) {

@@ -290,12 +290,16 @@ body:has(.account-page-wrapper) {
 }
 
 /* Semantic per-card icon colors — kept for instant recognition */
-.action-card.logout svg       { color: #dc2626; }
-.action-card.logout:hover     { border-color: rgba(220, 38, 38, 0.30); }
-.action-card.login svg        { color: #1aa851; }
-.action-card.dashboard svg    { color: var(--pf-gold-deep, #A67C2E); }
-.action-card.admin-access svg { color: var(--pf-brown, #8A5A3C); }
-.action-card.orders svg       { color: var(--pf-gold, #C49A45); }
+.action-card.logout svg             { color: #dc2626; }
+.action-card.logout:hover           { border-color: rgba(220, 38, 38, 0.30); }
+.action-card.login svg              { color: #1aa851; }
+.action-card.login:hover            { border-color: rgba(26, 168, 81, 0.30); }
+.action-card.dashboard svg          { color: var(--pf-gold-deep, #A67C2E); }
+.action-card.continue-shopping svg  { color: var(--pf-brown, #8A5A3C); }
+.action-card.continue-shopping:hover { border-color: rgba(138, 90, 60, 0.30); }
+.action-card.track-order svg        { color: var(--pf-gold, #C49A45); }
+.action-card.track-order:hover      { border-color: rgba(196, 154, 69, 0.30); }
+/* (admin-access + orders classes removed — admin is now secret-triggered) */
 
 /* ============================================
    ACCOUNT CHECK BOX (create-account / logout buttons)
@@ -1056,6 +1060,186 @@ body:has(.account-page-wrapper) {
   .profile-header svg,
   .tracking-step.active .step-dot,
   .notification-item.unread::after {
+    animation: none !important;
+  }
+}
+
+/* =====================================================================
+   🤫 SECRET ADMIN TRIGGER + REVEALED ADMIN LINK
+   Profile avatar is a button. Tap it 5 times within 2.5s to reveal
+   a hidden "Admin Login" link at the bottom of the card.
+   Pattern matches WhatsApp/Flipkart hidden admin entry.
+   ===================================================================== */
+
+/* Reset button styles for the avatar trigger */
+.profile-avatar-trigger {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0 0 14px;
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  outline: none;
+  border-radius: 50%;
+  /* Invisible focus ring unless keyboard-focused */
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.profile-avatar-trigger:focus-visible {
+  outline: 2px solid var(--pf-gold, #C49A45);
+  outline-offset: 6px;
+}
+/* Subtle press feedback */
+.profile-avatar-trigger:active {
+  transform: scale(0.96);
+}
+/* The FaUserCircle inside still inherits the existing .profile-header svg styles
+   (gold color, float animation, drop-shadow). Just reset margin since the button
+   now handles spacing. */
+.profile-avatar-trigger svg {
+  margin-bottom: 0;
+  display: block;
+}
+
+/* Tap progress ring — subtle gold pulse when tapping (no text, no hint) */
+.profile-avatar-trigger .tap-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  margin-top: -40px;
+  margin-left: -40px;
+  border-radius: 50%;
+  border: 2px solid var(--pf-gold, #C49A45);
+  opacity: 0;
+  pointer-events: none;
+  animation: tapRingPulse 0.6s ease-out forwards;
+}
+@keyframes tapRingPulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* When tapping, briefly intensify the avatar's glow */
+.profile-avatar-trigger.tapping svg {
+  filter: drop-shadow(0 6px 24px rgba(196, 154, 69, 0.55)) !important;
+}
+
+/* ============================================================
+   SECRET ADMIN REVEAL — appears at bottom of account-container
+   ============================================================ */
+.secret-admin-reveal {
+  margin-top: 22px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(57, 37, 27, 0.04) 0%, rgba(196, 154, 69, 0.10) 100%);
+  border: 1px dashed rgba(196, 154, 69, 0.40);
+  border-radius: var(--pf-radius, 16px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: adminRevealIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+@keyframes adminRevealIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.secret-admin-reveal .reveal-icon {
+  color: var(--pf-gold-deep, #A67C2E);
+  font-size: 15px;
+  flex-shrink: 0;
+  animation: keyJiggle 1.6s ease-in-out infinite;
+}
+@keyframes keyJiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(12deg); }
+}
+
+.secret-admin-reveal span {
+  font-family: var(--pf-font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pf-text-soft, #5C4A3D);
+  letter-spacing: 0.2px;
+}
+
+.secret-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--pf-chocolate, #39251B);
+  color: var(--pf-white, #FFFFFF);
+  border: none;
+  padding: 10px 18px;
+  border-radius: var(--pf-radius-pill, 999px);
+  font-family: var(--pf-font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  letter-spacing: 0.3px;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 40px;
+}
+.secret-admin-btn:hover {
+  background: linear-gradient(135deg, var(--pf-gold, #C49A45), var(--pf-gold-deep, #A67C2E));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(196, 154, 69, 0.32);
+}
+.secret-admin-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+.secret-admin-btn svg {
+  font-size: 13px;
+}
+
+/* ============================================================
+   MOBILE TWEAKS for new layout
+   ============================================================ */
+@media (max-width: 480px) {
+  .secret-admin-reveal {
+    padding: 14px 14px;
+    gap: 10px;
+  }
+  .secret-admin-reveal span {
+    font-size: 12px;
+  }
+  .secret-admin-btn {
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+  /* Slightly larger avatar tap target on mobile for easier 5-tap */
+  .profile-avatar-trigger {
+    padding: 8px;
+    margin: -8px -8px 6px;
+  }
+}
+
+/* Hide tap ring + secret reveal in reduced-motion mode */
+@media (prefers-reduced-motion: reduce) {
+  .profile-avatar-trigger .tap-ring,
+  .secret-admin-reveal .reveal-icon {
+    animation: none !important;
+  }
+  .secret-admin-reveal {
     animation: none !important;
   }
 }

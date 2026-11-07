@@ -70,6 +70,13 @@ const Signup = () => {
         // Save token + user
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        // 🛡️ Save session ID for device tracking
+        if (data.sessionId) {
+          localStorage.setItem('sessionId', data.sessionId);
+        }
+        if (data.expiresIn) {
+          localStorage.setItem('sessionExpiresAt', Date.now() + data.expiresIn);
+        }
 
         toast.success('Welcome to PRADH family! 🎉');
 
