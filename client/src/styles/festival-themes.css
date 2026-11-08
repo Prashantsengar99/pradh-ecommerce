@@ -1,0 +1,519 @@
+/* ============================================================
+   🎨 PRADH DESI FUEL — FESTIVAL THEME SYSTEM
+   6 themes: Default | Diwali | Holi | Rakshabandhan | Independence | Christmas
+
+   HOW IT WORKS:
+   - Body gets a class: theme-default, theme-diwali, etc.
+   - CSS variables (--pf-*) are overridden per theme
+   - All existing components automatically pick up new colors
+   - Each theme adds decorative animations (fireworks, snow, etc.)
+   ============================================================ */
+
+/* ============================================
+   THEME: DEFAULT (Warm Editorial Luxury)
+   No body class needed — this is the base
+   ============================================ */
+body.theme-default,
+body {
+  --pf-cream: #F8F5EF;
+  --pf-beige: #E9DFD1;
+  --pf-sand: #D8C6B1;
+  --pf-brown: #8A5A3C;
+  --pf-chocolate: #39251B;
+  --pf-gold: #C49A45;
+  --pf-gold-soft: #D9B872;
+  --pf-gold-deep: #A67C2E;
+  --pf-charcoal: #171512;
+  --pf-white: #FFFFFF;
+  --pf-text: #39251B;
+  --pf-text-soft: #5C4A3D;
+  --pf-text-muted: #8A7560;
+  --pf-border: rgba(57, 37, 27, 0.10);
+  --pf-border-strong: rgba(57, 37, 27, 0.18);
+  background: var(--pf-cream);
+  color: var(--pf-chocolate);
+}
+
+/* ============================================
+   🪔 THEME: DIWALI — Deep Orange/Gold/Red
+   Floating diyas + firework sparks
+   ============================================ */
+body.theme-diwali {
+  --pf-cream: #FFF4E6;
+  --pf-beige: #FFE4C4;
+  --pf-sand: #FFD89B;
+  --pf-brown: #B8460E;
+  --pf-chocolate: #8B0000;
+  --pf-gold: #FF6B35;
+  --pf-gold-soft: #FFA500;
+  --pf-gold-deep: #D2691E;
+  --pf-charcoal: #2C1810;
+  --pf-white: #FFFFFF;
+  --pf-text: #8B0000;
+  --pf-text-soft: #A0522D;
+  --pf-text-muted: #CD853F;
+  --pf-border: rgba(139, 0, 0, 0.12);
+  --pf-border-strong: rgba(139, 0, 0, 0.22);
+  background: linear-gradient(135deg, #FFF4E6 0%, #FFE4C4 50%, #FFD89B 100%);
+}
+
+/* Diwali — floating diya emojis */
+body.theme-diwali::before {
+  content: '🪔';
+  position: fixed;
+  top: 15%;
+  right: 5%;
+  font-size: 48px;
+  z-index: 9990;
+  pointer-events: none;
+  animation: diwali-float 4s ease-in-out infinite;
+  text-shadow: 0 0 20px rgba(255, 165, 0, 0.6);
+}
+body.theme-diwali::after {
+  content: '✨';
+  position: fixed;
+  top: 25%;
+  left: 8%;
+  font-size: 32px;
+  z-index: 9990;
+  pointer-events: none;
+  animation: diwali-sparkle 2s ease-in-out infinite;
+}
+@keyframes diwali-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.8; }
+  50% { transform: translateY(-20px) rotate(5deg); opacity: 1; }
+}
+@keyframes diwali-sparkle {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Diwali — firework sparks overlay */
+body.theme-diwali .pf-hero::before,
+body.theme-diwali .home-hero::before {
+  content: '🎆';
+  position: absolute;
+  top: 10%;
+  right: 15%;
+  font-size: 40px;
+  animation: diwali-sparkle 1.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ============================================
+   🎨 THEME: HOLI — Multi-color gradients
+   Color splash bubbles floating
+   ============================================ */
+body.theme-holi {
+  --pf-cream: #FFF0F5;
+  --pf-beige: #FFE4E1;
+  --pf-sand: #FFB6C1;
+  --pf-brown: #C71585;
+  --pf-chocolate: #800080;
+  --pf-gold: #FF1493;
+  --pf-gold-soft: #FF69B4;
+  --pf-gold-deep: #C71585;
+  --pf-charcoal: #4B0082;
+  --pf-white: #FFFFFF;
+  --pf-text: #4B0082;
+  --pf-text-soft: #800080;
+  --pf-text-muted: #DA70D6;
+  --pf-border: rgba(199, 21, 133, 0.12);
+  --pf-border-strong: rgba(199, 21, 133, 0.22);
+  background: linear-gradient(135deg, #FFF0F5 0%, #E6E6FA 33%, #FFE4E1 66%, #FFF0F5 100%);
+}
+
+/* Holi — floating color bubbles */
+body.theme-holi::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(255,20,147,0.15) 0%, transparent 8%),
+    radial-gradient(circle at 80% 30%, rgba(0,191,255,0.15) 0%, transparent 8%),
+    radial-gradient(circle at 30% 70%, rgba(50,205,50,0.15) 0%, transparent 8%),
+    radial-gradient(circle at 70% 80%, rgba(255,165,0,0.15) 0%, transparent 8%),
+    radial-gradient(circle at 50% 50%, rgba(138,43,226,0.12) 0%, transparent 10%);
+  pointer-events: none;
+  z-index: 9990;
+  animation: holi-rotate 20s linear infinite;
+}
+@keyframes holi-rotate {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.1); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+/* Holi — color splash on hero */
+body.theme-holi .pf-hero,
+body.theme-holi .home-hero {
+  position: relative;
+}
+body.theme-holi .pf-hero::after,
+body.theme-holi .home-hero::after {
+  content: '🎨';
+  position: absolute;
+  top: 15%;
+  right: 10%;
+  font-size: 48px;
+  animation: holi-bounce 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+@keyframes holi-bounce {
+  0%, 100% { transform: translateY(0) rotate(-10deg); }
+  50% { transform: translateY(-15px) rotate(10deg); }
+}
+
+/* ============================================
+   🧵 THEME: RAKSHABANDHAN — Red/Gold/Silver
+   Rakhi thread pattern accent
+   ============================================ */
+body.theme-rakshabandhan {
+  --pf-cream: #FFF5F5;
+  --pf-beige: #FFE4E1;
+  --pf-sand: #F5DEB3;
+  --pf-brown: #8B4513;
+  --pf-chocolate: #DC143C;
+  --pf-gold: #DAA520;
+  --pf-gold-soft: #FFD700;
+  --pf-gold-deep: #B8860B;
+  --pf-charcoal: #8B0000;
+  --pf-white: #FFFFFF;
+  --pf-text: #8B0000;
+  --pf-text-soft: #B22222;
+  --pf-text-muted: #CD5C5C;
+  --pf-border: rgba(220, 20, 60, 0.12);
+  --pf-border-strong: rgba(220, 20, 60, 0.22);
+  background: linear-gradient(135deg, #FFF5F5 0%, #FFE4E1 50%, #F5DEB3 100%);
+}
+
+/* Rakshabandhan — rakhi emoji */
+body.theme-rakshabandhan::before {
+  content: '🧵';
+  position: fixed;
+  top: 12%;
+  right: 6%;
+  font-size: 40px;
+  z-index: 9990;
+  pointer-events: none;
+  animation: rakhi-swing 3s ease-in-out infinite;
+}
+body.theme-rakshabandhan::after {
+  content: '🪔';
+  position: fixed;
+  top: 22%;
+  left: 7%;
+  font-size: 36px;
+  z-index: 9990;
+  pointer-events: none;
+  animation: rakhi-swing 3s ease-in-out infinite reverse;
+}
+@keyframes rakhi-swing {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+
+/* Rakshabandhan — gold border accent on top */
+body.theme-rakshabandhan .navbar,
+body.theme-rakshabandhan .pf-navbar {
+  border-bottom: 3px solid var(--pf-gold) !important;
+  box-shadow: 0 4px 12px rgba(218, 165, 32, 0.2) !important;
+}
+
+/* ============================================
+   🇮🇳 THEME: INDEPENDENCE DAY — Saffron/White/Green
+   Tricolor accent bar
+   ============================================ */
+body.theme-independence {
+  --pf-cream: #FFFFFF;
+  --pf-beige: #F5F5DC;
+  --pf-sand: #FF9933;
+  --pf-brown: #138808;
+  --pf-chocolate: #000080;
+  --pf-gold: #FF9933;
+  --pf-gold-soft: #FFB347;
+  --pf-gold-deep: #CC7700;
+  --pf-charcoal: #000080;
+  --pf-white: #FFFFFF;
+  --pf-text: #000080;
+  --pf-text-soft: #1a1a8e;
+  --pf-text-muted: #4a4a9e;
+  --pf-border: rgba(0, 0, 128, 0.12);
+  --pf-border-strong: rgba(0, 0, 128, 0.22);
+  background: linear-gradient(180deg, #FF9933 0%, #FFFFFF 50%, #138808 100%);
+  background-attachment: fixed;
+}
+
+/* Independence — tricolor top bar */
+body.theme-independence::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #FF9933 0%, #FF9933 33%, #FFFFFF 33%, #FFFFFF 66%, #138808 66%, #138808 100%);
+  z-index: 10000;
+  pointer-events: none;
+}
+
+/* Independence — flag emoji */
+body.theme-independence::after {
+  content: '🇮🇳';
+  position: fixed;
+  top: 15%;
+  right: 5%;
+  font-size: 42px;
+  z-index: 9990;
+  pointer-events: none;
+  animation: flag-wave 2.5s ease-in-out infinite;
+}
+@keyframes flag-wave {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+/* ============================================
+   🎄 THEME: CHRISTMAS — Red/Green/Gold
+   Snowfall animation
+   ============================================ */
+body.theme-christmas {
+  --pf-cream: #F0F8FF;
+  --pf-beige: #E0F0FF;
+  --pf-sand: #B0E0E6;
+  --pf-brown: #8B4513;
+  --pf-chocolate: #B22222;
+  --pf-gold: #DAA520;
+  --pf-gold-soft: #FFD700;
+  --pf-gold-deep: #B8860B;
+  --pf-charcoal: #006400;
+  --pf-white: #FFFFFF;
+  --pf-text: #006400;
+  --pf-text-soft: #228B22;
+  --pf-text-muted: #2E8B57;
+  --pf-border: rgba(0, 100, 0, 0.12);
+  --pf-border-strong: rgba(0, 100, 0, 0.22);
+  background: linear-gradient(135deg, #F0F8FF 0%, #E0F0FF 50%, #F0FFF0 100%);
+}
+
+/* Christmas — snowfall */
+body.theme-christmas::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    radial-gradient(circle at 10% 10%, white 1px, transparent 2px),
+    radial-gradient(circle at 30% 20%, white 1px, transparent 2px),
+    radial-gradient(circle at 50% 15%, white 1px, transparent 2px),
+    radial-gradient(circle at 70% 25%, white 1px, transparent 2px),
+    radial-gradient(circle at 90% 10%, white 1px, transparent 2px),
+    radial-gradient(circle at 20% 40%, white 1px, transparent 2px),
+    radial-gradient(circle at 60% 50%, white 1px, transparent 2px),
+    radial-gradient(circle at 80% 60%, white 1px, transparent 2px),
+    radial-gradient(circle at 15% 70%, white 1px, transparent 2px),
+    radial-gradient(circle at 45% 80%, white 1px, transparent 2px),
+    radial-gradient(circle at 75% 90%, white 1px, transparent 2px);
+  background-size: 200px 200px;
+  pointer-events: none;
+  z-index: 9990;
+  opacity: 0.7;
+  animation: snowfall 8s linear infinite;
+}
+@keyframes snowfall {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 200px; }
+}
+
+/* Christmas — tree + santa emojis */
+body.theme-christmas::after {
+  content: '🎄';
+  position: fixed;
+  top: 15%;
+  right: 5%;
+  font-size: 44px;
+  z-index: 9990;
+  pointer-events: none;
+  animation: christmas-bounce 3s ease-in-out infinite;
+}
+@keyframes christmas-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(1.05); }
+}
+
+/* Christmas — red/gold border on navbar */
+body.theme-christmas .navbar,
+body.theme-christmas .pf-navbar {
+  border-bottom: 3px solid var(--pf-gold) !important;
+  box-shadow: 0 4px 12px rgba(218, 165, 32, 0.2) !important;
+}
+
+/* ============================================
+   🎨 SHARED — Theme transition smoothness
+   ============================================ */
+body {
+  transition: background-color 0.6s ease, color 0.6s ease;
+}
+
+/* All elements using --pf-* vars get smooth transition */
+body[class*="theme-"] * {
+  transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+}
+
+/* Don't transition hover effects or interactive elements */
+body[class*="theme-"] button:hover,
+body[class*="theme-"] a:hover,
+body[class*="theme-"] input:focus,
+body[class*="theme-"] .card:hover {
+  transition: all 0.2s ease;
+}
+
+/* ============================================
+   🎨 FESTIVAL BANNER — shows festival name
+   ============================================ */
+.festival-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9991;
+  padding: 6px 24px;
+  border-radius: 0 0 12px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+  text-align: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  animation: festival-banner-slide 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.theme-diwali .festival-banner { background: linear-gradient(135deg, #FF6B35, #FFA500); }
+body.theme-holi .festival-banner { background: linear-gradient(135deg, #FF1493, #FF69B4); }
+body.theme-rakshabandhan .festival-banner { background: linear-gradient(135deg, #DC143C, #DAA520); }
+body.theme-independence .festival-banner { background: linear-gradient(135deg, #FF9933, #138808); }
+body.theme-christmas .festival-banner { background: linear-gradient(135deg, #B22222, #006400); }
+
+@keyframes festival-banner-slide {
+  from { transform: translate(-50%, -100%); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* ============================================
+   🎨 ADMIN PANEL — Theme preview cards
+   ============================================ */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.theme-card {
+  background: var(--pf-white, #FFFFFF);
+  border: 2px solid var(--pf-border, rgba(57, 37, 27, 0.10));
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+.theme-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(57, 37, 27, 0.18);
+}
+.theme-card.active {
+  border-color: var(--pf-gold, #C49A45);
+  box-shadow: 0 0 0 4px rgba(196, 154, 69, 0.20);
+}
+
+.theme-preview {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Theme preview backgrounds */
+.theme-preview-default {
+  background: linear-gradient(135deg, #F8F5EF, #E9DFD1);
+  color: #C49A45;
+}
+.theme-preview-diwali {
+  background: linear-gradient(135deg, #FFF4E6, #FFA500);
+  color: #8B0000;
+}
+.theme-preview-holi {
+  background: linear-gradient(135deg, #FF1493, #00BFFF, #32CD32);
+  color: #FFFFFF;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.theme-preview-rakshabandhan {
+  background: linear-gradient(135deg, #DC143C, #DAA520);
+  color: #FFFFFF;
+}
+.theme-preview-independence {
+  background: linear-gradient(180deg, #FF9933 33%, #FFFFFF 33%, #FFFFFF 66%, #138808 66%);
+  color: #000080;
+}
+.theme-preview-christmas {
+  background: linear-gradient(135deg, #B22222, #006400);
+  color: #FFD700;
+}
+
+.theme-info {
+  padding: 14px 16px;
+  text-align: center;
+}
+.theme-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pf-chocolate, #39251B);
+  margin-bottom: 4px;
+}
+.theme-desc {
+  font-size: 11.5px;
+  color: var(--pf-text-muted, #8A7560);
+}
+.theme-active-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #22c55e;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================
+   📱 MOBILE — Disable heavy animations
+   ============================================ */
+@media (max-width: 768px) {
+  body.theme-diwali::before,
+  body.theme-diwali::after,
+  body.theme-holi::before,
+  body.theme-rakshabandhan::before,
+  body.theme-rakshabandhan::after,
+  body.theme-independence::after,
+  body.theme-christmas::after {
+    font-size: 28px;
+  }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  body[class*="theme-"]::before,
+  body[class*="theme-"]::after {
+    animation: none !important;
+  }
+  body.theme-christmas::before {
+    display: none;
+  }
+}

@@ -180,6 +180,8 @@ const settingsSchema = new mongoose.Schema({
   ctaEnabled: { type: Boolean, default: true },
   ctaTitle: { type: String, default: 'Ready to Fuel Your Desi Strength?' },
   ctaDesc: { type: String, default: 'Use this coupon code and get flat 20% off on your first order.' },
+  // 🎨 FESTIVAL THEME — admin can switch entire website theme
+  activeTheme: { type: String, default: 'default' }, // default | diwali | holi | rakshabandhan | independence | christmas
   lastUpdated: { type: Date, default: Date.now },
 });
 
@@ -2849,6 +2851,51 @@ app.put('/api/wheel-settings', verifyAdminToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Wheel settings error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================================
+// 🎨 FESTIVAL THEME SETTINGS API
+// Admin selects a theme → stored in DB → frontend applies it
+// ============================================================
+app.get('/api/theme-settings', async (req, res) => {
+  try {
+    let setting = await Setting.findOne({ key: 'theme' });
+    if (!setting) {
+      setting = await Setting.create({
+        key: 'theme',
+        activeTheme: 'default',
+      });
+    }
+    res.json({
+      success: true,
+      activeTheme: setting.activeTheme || 'default',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/theme-settings', verifyAdminToken, async (req, res) => {
+  try {
+    const { activeTheme } = req.body;
+    const VALID_THEMES = ['default', 'auto', 'diwali', 'holi', 'lohri', 'sankranti', 'republic', 'ganesh', 'janmashtami', 'independence', 'rakhi', 'navratri', 'durga', 'dussehra', 'christmas', 'eid', 'onam', 'pongal', 'baisakhi', 'gurpurab', 'shivratri'];
+    if (!VALID_THEMES.includes(activeTheme)) {
+      return res.status(400).json({ success: false, error: 'Invalid theme. Valid: ' + VALID_THEMES.join(', ') });
+    }
+    const setting = await Setting.findOneAndUpdate(
+      { key: 'theme' },
+      { activeTheme, lastUpdated: new Date() },
+      { new: true, upsert: true }
+    );
+    console.log(`🎨 Theme changed to: ${activeTheme}`);
+    res.json({
+      success: true,
+      message: 'Theme updated!',
+      activeTheme: setting.activeTheme,
+    });
+  } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });

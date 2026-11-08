@@ -11,11 +11,13 @@ import {
   FaTruck, FaReceipt, FaRupeeSign, FaBars,
   FaArrowUp, FaArrowDown, FaClock, FaExclamationTriangle, FaBell,
   FaChartLine, FaShoppingCart, FaBoxOpen, FaUndoAlt, FaCheck, FaBan, FaWhatsapp,
-  FaGift, FaEnvelope, FaPaperPlane, FaInbox, FaFilePdf,
+  FaGift, FaEnvelope, FaPaperPlane, FaInbox, FaFilePdf, FaPalette,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import '../../styles/admin.css';
 import '../../styles/tracking.css';
+import { FESTIVAL_THEMES, ALL_THEME_KEYS } from '../../festival/festivalConfig';
+import { detectActiveFestival } from '../../festival/festivalDetector';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -71,6 +73,10 @@ const AdminPanel = () => {
   const [sendingEmailId, setSendingEmailId] = useState(null); // which order email is being sent to
   const [emailConfigured, setEmailConfigured] = useState(true); // is Gmail configured on backend?
   const [mailSearch, setMailSearch] = useState(''); // search in Mail Center
+
+  // 🎨 FESTIVAL THEME state
+  const [activeTheme, setActiveTheme] = useState('default');
+  const [themeSaving, setThemeSaving] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem('adminLoggedIn')) {
@@ -196,7 +202,53 @@ const AdminPanel = () => {
     if (key === 'wheel') loadWheelSettings();
     if (key === 'announcement') loadAnnouncementSettings();
     if (key === 'mail') { loadOrders(); checkEmailStatus(); }
+    if (key === 'themes') loadThemeSettings();
     if (key === 'dashboard') loadDashboard();
+  };
+
+  // 🎨 THEME — Load active theme from server
+  const loadThemeSettings = async () => {
+    try {
+      const res = await apiFetch('/api/theme-settings');
+      const data = await res.json();
+      if (data.success) {
+        setActiveTheme(data.activeTheme || 'default');
+        // Preview the theme on admin's body too
+        document.body.className = '';
+        document.body.classList.add(`theme-${data.activeTheme || 'default'}`);
+      }
+    } catch (err) { console.error('Theme load failed:', err); }
+  };
+
+  // 🎨 THEME — Apply theme (single click)
+  const applyTheme = async (themeKey) => {
+    if (themeKey === activeTheme) return; // already active
+    setThemeSaving(true);
+    const previousTheme = activeTheme;
+    setActiveTheme(themeKey); // optimistic update
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const res = await apiFetch('/api/theme-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ activeTheme: themeKey }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`🎨 Theme changed to ${FESTIVAL_THEMES[themeKey]?.name || themeKey}!`, { duration: 3000 });
+        // Apply on admin body for live preview
+        document.body.className = '';
+        document.body.classList.add(`theme-${themeKey}`);
+      } else {
+        setActiveTheme(previousTheme); // revert
+        toast.error(data.error || 'Failed to change theme');
+      }
+    } catch (err) {
+      setActiveTheme(previousTheme); // revert
+      toast.error('Failed to change theme');
+    } finally {
+      setThemeSaving(false);
+    }
   };
 
   // ✅ WHEEL SETTINGS — Load from server
@@ -798,6 +850,7 @@ const AdminPanel = () => {
     { key: 'customers', icon: <FaUsers />, label: 'Customers', badge: customers.length },
     { key: 'wheel', icon: <FaGift />, label: 'Spin Wheel' },
     { key: 'announcement', icon: <FaBell />, label: 'Announcement' },
+    { key: 'themes', icon: <FaPalette />, label: 'Themes' },
   ];
 
   return (
@@ -1891,6 +1944,116 @@ const AdminPanel = () => {
                   <li>Email template has PRADH DESI FUEL branding (chocolate/gold theme)</li>
                 </ul>
               </div>
+            </div>
+          )}
+
+          {/* ===== 🎨 THEMES SECTION ===== */}
+          {section === 'themes' && (
+            <div className="page-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--pf-chocolate, #39251B)' }}>🎨 Festival Themes</h1>
+                  <p style={{ color: 'var(--pf-text-muted, #8A7560)' }}>Single click — change entire website theme for any festival</p>
+                </div>
+                <button className="btn-primary" onClick={loadThemeSettings}>
+                  <FaSync /> Refresh
+                </button>
+              </div>
+
+              {/* Active theme banner */}
+              <div style={{ marginBottom: '24px', padding: '16px 22px', background: 'linear-gradient(135deg, rgba(196,154,69,0.08), rgba(57,37,27,0.04))', border: '1px solid rgba(196,154,69,0.25)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--pf-text-muted, #8A7560)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '1px' }}>Currently Active</div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--pf-chocolate, #39251B)', marginTop: '4px' }}>
+                    {FESTIVAL_THEMES[activeTheme]?.emoji} {FESTIVAL_THEMES[activeTheme]?.name}
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--pf-text-muted, #8A7560)', marginTop: '2px' }}>{FESTIVAL_THEMES[activeTheme]?.desc}</div>
+                </div>
+                <div style={{ fontSize: '48px' }}>{FESTIVAL_THEMES[activeTheme]?.emoji}</div>
+              </div>
+
+              {/* Theme grid */}
+              <div className="theme-grid">
+                {/* Auto Mode card */}
+                <div
+                  className={`theme-card ${activeTheme === 'auto' ? 'active' : ''}`}
+                  onClick={() => !themeSaving && applyTheme('auto')}
+                  style={{ cursor: themeSaving ? 'wait' : 'pointer', opacity: themeSaving && activeTheme !== 'auto' ? 0.6 : 1 }}
+                >
+                  {activeTheme === 'auto' && (
+                    <span className="theme-active-badge">
+                      <FaCheck style={{ fontSize: '9px', marginRight: '3px' }} />
+                      Active
+                    </span>
+                  )}
+                  <div className="theme-preview theme-preview-default" style={{ background: 'linear-gradient(135deg, #8b5cf6, #C49A45)' }}>
+                    🤖
+                  </div>
+                  <div className="theme-info">
+                    <div className="theme-name">Auto Mode</div>
+                    <div className="theme-desc">Auto festival detection</div>
+                  </div>
+                </div>
+
+                {Object.entries(FESTIVAL_THEMES).map(([key, info]) => (
+                  <div
+                    key={key}
+                    className={`theme-card ${activeTheme === key ? 'active' : ''}`}
+                    onClick={() => !themeSaving && applyTheme(key)}
+                    style={{ cursor: themeSaving ? 'wait' : 'pointer', opacity: themeSaving && activeTheme !== key ? 0.6 : 1 }}
+                  >
+                    {activeTheme === key && (
+                      <span className="theme-active-badge">
+                        <FaCheck style={{ fontSize: '9px', marginRight: '3px' }} />
+                        Active
+                      </span>
+                    )}
+                    <div className={`theme-preview theme-preview-${key}`}>
+                      {info.emoji}
+                    </div>
+                    <div className="theme-info">
+                      <div className="theme-name">{info.name}</div>
+                      <div className="theme-desc">{info.tagline}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Info box */}
+              <div style={{ marginTop: '24px', padding: '18px 22px', background: 'rgba(196, 154, 69, 0.08)', border: '1px dashed rgba(196, 154, 69, 0.3)', borderRadius: '12px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--pf-chocolate, #39251B)', fontSize: '14px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FaPalette style={{ color: 'var(--pf-gold-deep, #A67C2E)' }} /> How it works
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--pf-text-soft, #5C4A3D)', fontSize: '13px', lineHeight: 1.8 }}>
+                  <li><strong>Single click</strong> kisi bhi theme pe → poora website instantly change</li>
+                  <li>Customers ko bhi naya theme dikhega (DB mein save hota hai)</li>
+                  <li>Har theme ke saath <strong>festival decorations</strong> aate hain:
+                    <ul style={{ marginTop: '4px' }}>
+                      <li>🪔 Diwali → floating diyas + firework sparks</li>
+                      <li>🎨 Holi → color splash bubbles</li>
+                      <li>🧵 Rakshabandhan → rakhi thread + gold border</li>
+                      <li>🇮🇳 Independence → tricolor top bar + flag</li>
+                      <li>🎄 Christmas → snowfall animation</li>
+                    </ul>
+                  </li>
+                  <li>"Default" theme pe click karke wapas normal Warm Editorial Luxury wapas la sakte ho</li>
+                  <li>Theme <strong>3-4 second</strong> mein change hota hai — bina reload ke</li>
+                </ul>
+              </div>
+
+              {/* Reset button */}
+              {activeTheme !== 'default' && (
+                <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                  <button
+                    className="btn-info"
+                    onClick={() => applyTheme('default')}
+                    disabled={themeSaving}
+                    style={{ padding: '12px 28px', fontSize: '14px' }}
+                  >
+                    <FaSync /> Reset to Default Theme
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </main>

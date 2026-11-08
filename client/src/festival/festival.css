@@ -1,0 +1,616 @@
+/* ============================================================
+   🎨 PRADH DESI FUEL — FESTIVAL THEME SYSTEM
+   12 Indian festival themes + cinematic intro + decorations
+   
+   HOW IT WORKS:
+   - Body gets class: theme-diwali, theme-holi, etc.
+   - CSS variables (--pf-*) override per theme
+   - All existing components auto-pick new colors
+   - Decorative animations per festival
+   ============================================================ */
+
+/* ============================================
+   DEFAULT THEME (PRADH Classic — Warm Editorial Luxury)
+   ============================================ */
+body.theme-default, body {
+  --pf-cream: #F8F5EF; --pf-beige: #E9DFD1; --pf-sand: #D8C6B1;
+  --pf-brown: #8A5A3C; --pf-chocolate: #39251B; --pf-gold: #C49A45;
+  --pf-gold-soft: #D9B872; --pf-gold-deep: #A67C2E; --pf-charcoal: #171512;
+  --pf-white: #FFFFFF; --pf-text: #39251B; --pf-text-soft: #5C4A3D;
+  --pf-text-muted: #8A7560; --pf-border: rgba(57,37,27,0.10); --pf-border-strong: rgba(57,37,27,0.18);
+  --festival-gradient: linear-gradient(135deg, #F8F5EF 0%, #E9DFD1 100%);
+  background: var(--pf-cream); color: var(--pf-chocolate);
+}
+
+/* ============================================
+   🔥 LOHRI — Warm Orange, Fire Gold, Earth Brown
+   ============================================ */
+body.theme-lohri {
+  --pf-cream: #FFF5EB; --pf-beige: #FFE4C4; --pf-sand: #FFD89B;
+  --pf-brown: #8B4513; --pf-chocolate: #4A0E0E; --pf-gold: #E25822;
+  --pf-gold-soft: #FFB347; --pf-gold-deep: #D2691E; --pf-charcoal: #2C1810;
+  --pf-white: #FFFFFF; --pf-text: #4A0E0E; --pf-text-soft: #8B2500;
+  --pf-text-muted: #CD853F; --pf-border: rgba(226,88,34,0.15); --pf-border-strong: rgba(226,88,34,0.25);
+  --festival-gradient: linear-gradient(135deg, #FFF5EB 0%, #FFE4C4 40%, #FFB347 100%);
+  background: var(--festival-gradient);
+}
+body.theme-lohri::before {
+  content: '🔥'; position: fixed; top: 12%; right: 4%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: flicker 1.5s ease-in-out infinite;
+}
+@keyframes flicker { 0%,100% { transform: scale(1) rotate(-2deg); opacity: 0.9; } 50% { transform: scale(1.1) rotate(2deg); opacity: 1; } }
+
+/* ============================================
+   🪁 MAKAR SANKRANTI — Sky Blue, Yellow, Kite Colors
+   ============================================ */
+body.theme-sankranti {
+  --pf-cream: #E0F4FF; --pf-beige: #C1E8FF; --pf-sand: #87CEEB;
+  --pf-brown: #FF8C00; --pf-chocolate: #004080; --pf-gold: #FFD700;
+  --pf-gold-soft: #FFEA00; --pf-gold-deep: #DAA520; --pf-charcoal: #003366;
+  --pf-white: #FFFFFF; --pf-text: #004080; --pf-text-soft: #0066CC;
+  --pf-text-muted: #4682B4; --pf-border: rgba(0,64,128,0.12); --pf-border-strong: rgba(0,64,128,0.22);
+  --festival-gradient: linear-gradient(180deg, #87CEEB 0%, #E0F4FF 60%, #FFFFFF 100%);
+  background: var(--festival-gradient);
+}
+body.theme-sankranti::before {
+  content: '🪁'; position: fixed; top: 18%; right: 8%; font-size: 48px; z-index: 9990;
+  pointer-events: none; animation: kite-fly 4s ease-in-out infinite;
+}
+body.theme-sankranti::after {
+  content: '🪁'; position: fixed; top: 25%; left: 6%; font-size: 32px; z-index: 9990;
+  pointer-events: none; animation: kite-sway 3s ease-in-out infinite reverse;
+}
+@keyframes kite-fly { 0%,100% { transform: translate(0,0) rotate(10deg); } 50% { transform: translate(-15px,-10px) rotate(-5deg); } }
+@keyframes kite-sway { 0%,100% { transform: rotate(-15deg); } 50% { transform: rotate(5deg); } }
+
+/* ============================================
+   🇮🇳 REPUBLIC DAY — Saffron, White, Green
+   ============================================ */
+body.theme-republic {
+  --pf-cream: #FFFFFF; --pf-beige: #FFF8E7; --pf-sand: #FF9933;
+  --pf-brown: #138808; --pf-chocolate: #000080; --pf-gold: #FF9933;
+  --pf-gold-soft: #FFB366; --pf-gold-deep: #CC7700; --pf-charcoal: #000080;
+  --pf-white: #FFFFFF; --pf-text: #000080; --pf-text-soft: #1a1a8e;
+  --pf-text-muted: #4a4a9e; --pf-border: rgba(0,0,128,0.12); --pf-border-strong: rgba(0,0,128,0.22);
+  --festival-gradient: linear-gradient(180deg, #FF9933 0%, #FFFFFF 50%, #138808 100%);
+  background: var(--festival-gradient); background-attachment: fixed;
+}
+body.theme-republic::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; height: 5px;
+  background: linear-gradient(90deg, #FF9933 33%, #FFFFFF 33%, #FFFFFF 66%, #138808 66%);
+  z-index: 10000;
+}
+body.theme-republic::after {
+  content: '🇮🇳'; position: fixed; top: 14%; right: 4%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: flag-wave 2.5s ease-in-out infinite;
+}
+@keyframes flag-wave { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+
+/* ============================================
+   🎨 HOLI — Vibrant Pink, Yellow, Blue, Purple
+   ============================================ */
+body.theme-holi {
+  --pf-cream: #FFF0F5; --pf-beige: #FFE4E1; --pf-sand: #FFB6C1;
+  --pf-brown: #C71585; --pf-chocolate: #800080; --pf-gold: #FF1493;
+  --pf-gold-soft: #FF69B4; --pf-gold-deep: #C71585; --pf-charcoal: #4B0082;
+  --pf-white: #FFFFFF; --pf-text: #4B0082; --pf-text-soft: #800080;
+  --pf-text-muted: #DA70D6; --pf-border: rgba(199,21,133,0.12); --pf-border-strong: rgba(199,21,133,0.22);
+  --festival-gradient: linear-gradient(135deg, #FFF0F5 0%, #E6E6FA 33%, #FFE4E1 66%, #FFF0F5 100%);
+  background: var(--festival-gradient);
+}
+body.theme-holi::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(255,20,147,0.18) 0%, transparent 8%),
+    radial-gradient(circle at 80% 30%, rgba(0,191,255,0.18) 0%, transparent 8%),
+    radial-gradient(circle at 30% 70%, rgba(50,205,50,0.18) 0%, transparent 8%),
+    radial-gradient(circle at 70% 80%, rgba(255,165,0,0.18) 0%, transparent 8%),
+    radial-gradient(circle at 50% 50%, rgba(138,43,226,0.15) 0%, transparent 10%);
+  pointer-events: none; z-index: 9990; animation: holi-rotate 25s linear infinite;
+}
+@keyframes holi-rotate { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }
+
+/* ============================================
+   🙏 GANESH CHATURTHI — Saffron, Orange, Gold
+   ============================================ */
+body.theme-ganesh {
+  --pf-cream: #FFF8E7; --pf-beige: #FFE4B5; --pf-sand: #FFDAB9;
+  --pf-brown: #8B4513; --pf-chocolate: #FF8C00; --pf-gold: #DAA520;
+  --pf-gold-soft: #FFD700; --pf-gold-deep: #B8860B; --pf-charcoal: #654321;
+  --pf-white: #FFFFFF; --pf-text: #8B4513; --pf-text-soft: #A0522D;
+  --pf-text-muted: #CD853F; --pf-border: rgba(218,165,32,0.15); --pf-border-strong: rgba(218,165,32,0.25);
+  --festival-gradient: linear-gradient(135deg, #FFF8E7 0%, #FFE4B5 50%, #FFD700 100%);
+  background: var(--festival-gradient);
+}
+body.theme-ganesh::before {
+  content: '🙏'; position: fixed; top: 12%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: ganesh-glow 3s ease-in-out infinite;
+}
+@keyframes ganesh-glow { 0%,100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255,215,0,0.5)); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 20px rgba(255,215,0,0.8)); } }
+
+/* ============================================
+   🦚 JANMASHTAMI — Peacock Blue, Royal Blue, Gold
+   ============================================ */
+body.theme-janmashtami {
+  --pf-cream: #E6F3FF; --pf-beige: #C1E0FF; --pf-sand: #87CEEB;
+  --pf-brown: #1e3a8a; --pf-chocolate: #0c4a6e; --pf-gold: #DAA520;
+  --pf-gold-soft: #FFD700; --pf-gold-deep: #B8860B; --pf-charcoal: #1a237e;
+  --pf-white: #FFFFFF; --pf-text: #0c4a6e; --pf-text-soft: #1e3a8a;
+  --pf-text-muted: #4682B4; --pf-border: rgba(30,58,138,0.15); --pf-border-strong: rgba(30,58,138,0.25);
+  --festival-gradient: linear-gradient(135deg, #E6F3FF 0%, #C1E0FF 40%, #1e3a8a 200%);
+  background: var(--festival-gradient);
+}
+body.theme-janmashtami::before {
+  content: '🦚'; position: fixed; top: 14%; right: 5%; font-size: 46px; z-index: 9990;
+  pointer-events: none; animation: peacock-sway 4s ease-in-out infinite;
+}
+@keyframes peacock-sway { 0%,100% { transform: translateX(0) rotate(0deg); } 50% { transform: translateX(-10px) rotate(-5deg); } }
+
+/* ============================================
+   🇮🇳 INDEPENDENCE DAY — Tricolor
+   ============================================ */
+body.theme-independence {
+  --pf-cream: #FFFFFF; --pf-beige: #F5F5DC; --pf-sand: #FF9933;
+  --pf-brown: #138808; --pf-chocolate: #000080; --pf-gold: #FF9933;
+  --pf-gold-soft: #FFB347; --pf-gold-deep: #CC7700; --pf-charcoal: #000080;
+  --pf-white: #FFFFFF; --pf-text: #000080; --pf-text-soft: #1a1a8e;
+  --pf-text-muted: #4a4a9e; --pf-border: rgba(0,0,128,0.12); --pf-border-strong: rgba(0,0,128,0.22);
+  --festival-gradient: linear-gradient(180deg, #FF9933 0%, #FFFFFF 50%, #138808 100%);
+  background: var(--festival-gradient); background-attachment: fixed;
+}
+body.theme-independence::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; height: 5px;
+  background: linear-gradient(90deg, #FF9933 33%, #FFFFFF 33%, #FFFFFF 66%, #138808 66%);
+  z-index: 10000;
+}
+body.theme-independence::after {
+  content: '🇮🇳'; position: fixed; top: 14%; right: 4%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: flag-wave 2.5s ease-in-out infinite;
+}
+
+/* ============================================
+   🧵 RAKSHA BANDHAN — Pastel Pink, Cream, Gold
+   ============================================ */
+body.theme-rakhi {
+  --pf-cream: #FFF5F7; --pf-beige: #FFE4E1; --pf-sand: #FFDAB9;
+  --pf-brown: #DC143C; --pf-chocolate: #B22222; --pf-gold: #DAA520;
+  --pf-gold-soft: #FFD700; --pf-gold-deep: #B8860B; --pf-charcoal: #8B0000;
+  --pf-white: #FFFFFF; --pf-text: #8B0000; --pf-text-soft: #B22222;
+  --pf-text-muted: #CD5C5C; --pf-border: rgba(220,20,60,0.12); --pf-border-strong: rgba(220,20,60,0.22);
+  --festival-gradient: linear-gradient(135deg, #FFF5F7 0%, #FFE4E1 50%, #F5DEB3 100%);
+  background: var(--festival-gradient);
+}
+body.theme-rakhi::before {
+  content: '🧵'; position: fixed; top: 12%; right: 5%; font-size: 42px; z-index: 9990;
+  pointer-events: none; animation: rakhi-swing 3s ease-in-out infinite;
+}
+@keyframes rakhi-swing { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+
+/* ============================================
+   💃 NAVRATRI — Red, Orange, Purple, Gold
+   ============================================ */
+body.theme-navratri {
+  --pf-cream: #FFF0F5; --pf-beige: #FFE4E1; --pf-sand: #FFDAB9;
+  --pf-brown: #8B008B; --pf-chocolate: #DC143C; --pf-gold: #FF8C00;
+  --pf-gold-soft: #FFA500; --pf-gold-deep: #CC7000; --pf-charcoal: #4B0082;
+  --pf-white: #FFFFFF; --pf-text: #4B0082; --pf-text-soft: #8B008B;
+  --pf-text-muted: #DA70D6; --pf-border: rgba(220,20,60,0.15); --pf-border-strong: rgba(220,20,60,0.25);
+  --festival-gradient: linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 33%, #FFDAB9 66%, #FFE4B5 100%);
+  background: var(--festival-gradient);
+}
+body.theme-navratri::before {
+  content: '💃'; position: fixed; top: 14%; right: 5%; font-size: 46px; z-index: 9990;
+  pointer-events: none; animation: dandiya-spin 4s linear infinite;
+}
+@keyframes dandiya-spin { 0% { transform: rotate(0deg) translateY(0); } 50% { transform: rotate(180deg) translateY(-15px); } 100% { transform: rotate(360deg) translateY(0); } }
+
+/* ============================================
+   🌺 DURGA PUJA — Red, White, Gold
+   ============================================ */
+body.theme-durga {
+  --pf-cream: #FFFAFA; --pf-beige: #FFF0E7; --pf-sand: #FFE4C4;
+  --pf-brown: #DC143C; --pf-chocolate: #8B0000; --pf-gold: #DAA520;
+  --pf-gold-soft: #FFD700; --pf-gold-deep: #B8860B; --pf-charcoal: #2C0000;
+  --pf-white: #FFFFFF; --pf-text: #8B0000; --pf-text-soft: #B22222;
+  --pf-text-muted: #CD5C5C; --pf-border: rgba(220,20,60,0.15); --pf-border-strong: rgba(220,20,60,0.25);
+  --festival-gradient: linear-gradient(135deg, #FFFAFA 0%, #FFF0E7 50%, #FFE4C4 100%);
+  background: var(--festival-gradient);
+}
+body.theme-durga::before {
+  content: '🌺'; position: fixed; top: 13%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: flower-float 4s ease-in-out infinite;
+}
+@keyframes flower-float { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-15px) rotate(10deg); } }
+
+/* ============================================
+   🪔 DIWALI — Royal Gold, Deep Brown, Warm Lights
+   ============================================ */
+body.theme-diwali {
+  --pf-cream: #FFF4E6; --pf-beige: #FFE4C4; --pf-sand: #FFD89B;
+  --pf-brown: #B8460E; --pf-chocolate: #8B0000; --pf-gold: #FF6B35;
+  --pf-gold-soft: #FFA500; --pf-gold-deep: #D2691E; --pf-charcoal: #2C1810;
+  --pf-white: #FFFFFF; --pf-text: #8B0000; --pf-text-soft: #A0522D;
+  --pf-text-muted: #CD853F; --pf-border: rgba(139,0,0,0.12); --pf-border-strong: rgba(139,0,0,0.22);
+  --festival-gradient: linear-gradient(135deg, #FFF4E6 0%, #FFE4C4 50%, #FFD89B 100%);
+  background: var(--festival-gradient);
+}
+body.theme-diwali::before {
+  content: '🪔'; position: fixed; top: 15%; right: 5%; font-size: 48px; z-index: 9990;
+  pointer-events: none; animation: diya-glow 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 15px rgba(255,165,0,0.6));
+}
+body.theme-diwali::after {
+  content: '✨'; position: fixed; top: 25%; left: 8%; font-size: 32px; z-index: 9990;
+  pointer-events: none; animation: spark-anim 2s ease-in-out infinite;
+}
+@keyframes diya-glow { 0%,100% { transform: translateY(0) scale(1); opacity: 0.9; } 50% { transform: translateY(-10px) scale(1.05); opacity: 1; } }
+@keyframes spark-anim { 0%,100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.3); } }
+
+/* ============================================
+   🎄 CHRISTMAS — Red, Green, White, Gold
+   ============================================ */
+body.theme-christmas {
+  --pf-cream: #F0F8FF; --pf-beige: #E0F0FF; --pf-sand: #B0E0E6;
+  --pf-brown: #8B4513; --pf-chocolate: #B22222; --pf-gold: #DAA520;
+  --pf-gold-soft: #FFD700; --pf-gold-deep: #B8860B; --pf-charcoal: #006400;
+  --pf-white: #FFFFFF; --pf-text: #006400; --pf-text-soft: #228B22;
+  --pf-text-muted: #2E8B57; --pf-border: rgba(0,100,0,0.12); --pf-border-strong: rgba(0,100,0,0.22);
+  --festival-gradient: linear-gradient(135deg, #F0F8FF 0%, #E0F0FF 50%, #F0FFF0 100%);
+  background: var(--festival-gradient);
+}
+body.theme-christmas::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    radial-gradient(circle at 10% 10%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 30% 20%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 50% 15%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 70% 25%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 90% 10%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 20% 40%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 60% 50%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 80% 60%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 15% 70%, white 1.5px, transparent 2px),
+    radial-gradient(circle at 45% 80%, white 1.5px, transparent 2px);
+  background-size: 200px 200px; pointer-events: none; z-index: 9990;
+  opacity: 0.6; animation: snowfall 10s linear infinite;
+}
+body.theme-christmas::after {
+  content: '🎄'; position: fixed; top: 15%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: tree-bounce 3s ease-in-out infinite;
+}
+@keyframes snowfall { 0% { background-position: 0 0; } 100% { background-position: 0 200px; } }
+@keyframes tree-bounce { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-10px) scale(1.05); } }
+
+/* ============================================
+   🌙 EID — Green, Gold, Deep Green
+   ============================================ */
+body.theme-eid {
+  --pf-cream: #F0FFF4; --pf-beige: #E0F0E5; --pf-sand: #C1E8D5;
+  --pf-brown: #0d7a4f; --pf-chocolate: #1a5634; --pf-gold: #c3a35f;
+  --pf-gold-soft: #d4af37; --pf-gold-deep: #a08628; --pf-charcoal: #003319;
+  --pf-white: #FFFFFF; --pf-text: #1a5634; --pf-text-soft: #0d7a4f;
+  --pf-text-muted: #5a8c6f; --pf-border: rgba(13,122,79,0.15); --pf-border-strong: rgba(13,122,79,0.25);
+  --festival-gradient: linear-gradient(135deg, #F0FFF4 0%, #E0F0E5 50%, #C1E8D5 100%);
+  background: var(--festival-gradient);
+}
+body.theme-eid::before {
+  content: '🌙'; position: fixed; top: 14%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: moon-glow 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 15px rgba(212,175,55,0.5));
+}
+@keyframes moon-glow { 0%,100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.1); opacity: 1; } }
+
+/* ============================================
+   🌺 ONAM — Gold, Orange, Purple (Kerala)
+   ============================================ */
+body.theme-onam {
+  --pf-cream: #FFFAF0; --pf-beige: #FFF0E0; --pf-sand: #FFE4C4;
+  --pf-brown: #c3a35f; --pf-chocolate: #5b21b6; --pf-gold: #d97706;
+  --pf-gold-soft: #f59e0b; --pf-gold-deep: #b45309; --pf-charcoal: #3b0764;
+  --pf-white: #FFFFFF; --pf-text: #5b21b6; --pf-text-soft: #7c3aed;
+  --pf-text-muted: #a78bfa; --pf-border: rgba(91,33,182,0.12); --pf-border-strong: rgba(91,33,182,0.22);
+  --festival-gradient: linear-gradient(135deg, #FFFAF0 0%, #FFF0E0 50%, #FFE4C4 100%);
+  background: var(--festival-gradient);
+}
+body.theme-onam::before {
+  content: '🌺'; position: fixed; top: 13%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: flower-float 4s ease-in-out infinite;
+}
+
+/* ============================================
+   🌾 PONGAL — Gold, Brown, Green (Tamil Harvest)
+   ============================================ */
+body.theme-pongal {
+  --pf-cream: #FFFBEB; --pf-beige: #FEF3C7; --pf-sand: #FDE68A;
+  --pf-brown: #92400e; --pf-chocolate: #15803d; --pf-gold: #e8a838;
+  --pf-gold-soft: #f59e0b; --pf-gold-deep: #b45309; --pf-charcoal: #451a03;
+  --pf-white: #FFFFFF; --pf-text: #15803d; --pf-text-soft: #166534;
+  --pf-text-muted: #4d7c0f; --pf-border: rgba(21,128,61,0.12); --pf-border-strong: rgba(21,128,61,0.22);
+  --festival-gradient: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 50%, #FDE68A 100%);
+  background: var(--festival-gradient);
+}
+body.theme-pongal::before {
+  content: '🌾'; position: fixed; top: 12%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: wheat-sway 3s ease-in-out infinite;
+}
+@keyframes wheat-sway { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+
+/* ============================================
+   🌾 BAISAKHI — Orange, Red, Green (Punjab Harvest)
+   ============================================ */
+body.theme-baisakhi {
+  --pf-cream: #FFF8E7; --pf-beige: #FFE4C4; --pf-sand: #FFD89B;
+  --pf-brown: #b91c1c; --pf-chocolate: #15803d; --pf-gold: #f5a623;
+  --pf-gold-soft: #ff9500; --pf-gold-deep: #cc7700; --pf-charcoal: #3d1a00;
+  --pf-white: #FFFFFF; --pf-text: #b91c1c; --pf-text-soft: #dc2626;
+  --pf-text-muted: #f87171; --pf-border: rgba(185,28,28,0.12); --pf-border-strong: rgba(185,28,28,0.22);
+  --festival-gradient: linear-gradient(135deg, #FFF8E7 0%, #FFE4C4 50%, #FFD89B 100%);
+  background: var(--festival-gradient);
+}
+body.theme-baisakhi::before {
+  content: '🌾'; position: fixed; top: 12%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: wheat-sway 3s ease-in-out infinite;
+}
+
+/* ============================================
+   🏹 DUSSEHRA — Red, Gold, Blue (Victory)
+   ============================================ */
+body.theme-dussehra {
+  --pf-cream: #FFF5F5; --pf-beige: #FFE4E1; --pf-sand: #FFDAB9;
+  --pf-brown: #b91c1c; --pf-chocolate: #1d4ed8; --pf-gold: #f59e0b;
+  --pf-gold-soft: #fbbf24; --pf-gold-deep: #d97706; --pf-charcoal: #7f1d1d;
+  --pf-white: #FFFFFF; --pf-text: #b91c1c; --pf-text-soft: #dc2626;
+  --pf-text-muted: #ef4444; --pf-border: rgba(185,28,28,0.15); --pf-border-strong: rgba(185,28,28,0.25);
+  --festival-gradient: linear-gradient(135deg, #FFF5F5 0%, #FFE4E1 50%, #FFDAB9 100%);
+  background: var(--festival-gradient);
+}
+body.theme-dussehra::before {
+  content: '🏹'; position: fixed; top: 14%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: arrow-aim 3s ease-in-out infinite;
+}
+@keyframes arrow-aim { 0%,100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
+
+/* ============================================
+   🕯️ GURPURAB — Orange, Navy, Gold (Sikh)
+   ============================================ */
+body.theme-gurpurab {
+  --pf-cream: #FFF8E7; --pf-beige: #FFE4B5; --pf-sand: #FFDAB9;
+  --pf-brown: #003366; --pf-chocolate: #ffa500; --pf-gold: #d4af37;
+  --pf-gold-soft: #ffd700; --pf-gold-deep: #b8860b; --pf-charcoal: #001a33;
+  --pf-white: #FFFFFF; --pf-text: #003366; --pf-text-soft: #004080;
+  --pf-text-muted: #4d7ab3; --pf-border: rgba(0,51,102,0.15); --pf-border-strong: rgba(0,51,102,0.25);
+  --festival-gradient: linear-gradient(135deg, #FFF8E7 0%, #FFE4B5 50%, #FFDAB9 100%);
+  background: var(--festival-gradient);
+}
+body.theme-gurpurab::before {
+  content: '🕯️'; position: fixed; top: 14%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: candle-flicker 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px rgba(255,165,0,0.5));
+}
+@keyframes candle-flicker { 0%,100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.05); opacity: 1; } }
+
+/* ============================================
+   🔱 MAHA SHIVRATRI — Deep Blue, Gray, Gold
+   ============================================ */
+body.theme-shivratri {
+  --pf-cream: #E8EAF6; --pf-beige: #C5CAE9; --pf-sand: #9FA8DA;
+  --pf-brown: #37474f; --pf-chocolate: #1a237e; --pf-gold: #d4af37;
+  --pf-gold-soft: #ffd700; --pf-gold-deep: #b8860b; --pf-charcoal: #0d1845;
+  --pf-white: #FFFFFF; --pf-text: #1a237e; --pf-text-soft: #283593;
+  --pf-text-muted: #5c6bc0; --pf-border: rgba(26,35,126,0.15); --pf-border-strong: rgba(26,35,126,0.25);
+  --festival-gradient: linear-gradient(135deg, #1a237e 0%, #283593 50%, #37474f 100%);
+  background: var(--festival-gradient);
+}
+body.theme-shivratri::before {
+  content: '🔱'; position: fixed; top: 14%; right: 5%; font-size: 44px; z-index: 9990;
+  pointer-events: none; animation: trident-glow 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 15px rgba(212,175,55,0.5));
+}
+@keyframes trident-glow { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+
+/* ============================================
+   🎨 SHARED — Smooth transitions
+   ============================================ */
+body { transition: background-color 0.6s ease, color 0.6s ease; }
+body[class*="theme-"] * { transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease; }
+body[class*="theme-"] button:hover, body[class*="theme-"] a:hover, body[class*="theme-"] input:focus { transition: all 0.2s ease; }
+
+/* ============================================
+   🎉 FESTIVAL BANNER — top greeting bar
+   ============================================ */
+.festival-banner {
+  position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 9991;
+  padding: 6px 24px; border-radius: 0 0 12px 12px; font-size: 13px; font-weight: 700;
+  color: #FFFFFF; text-align: center; letter-spacing: 1px; text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: festival-banner-slide 0.6s cubic-bezier(0.22,1,0.36,1);
+  white-space: nowrap;
+}
+body.theme-lohri .festival-banner { background: linear-gradient(135deg, #E25822, #FFB347); }
+body.theme-sankranti .festival-banner { background: linear-gradient(135deg, #87CEEB, #FFD700); }
+body.theme-republic .festival-banner { background: linear-gradient(135deg, #FF9933, #138808); }
+body.theme-holi .festival-banner { background: linear-gradient(135deg, #FF1493, #FF69B4); }
+body.theme-ganesh .festival-banner { background: linear-gradient(135deg, #FF8C00, #DAA520); }
+body.theme-janmashtami .festival-banner { background: linear-gradient(135deg, #1e3a8a, #DAA520); }
+body.theme-independence .festival-banner { background: linear-gradient(135deg, #FF9933, #138808); }
+body.theme-rakhi .festival-banner { background: linear-gradient(135deg, #FFB6C1, #DC143C); }
+body.theme-navratri .festival-banner { background: linear-gradient(135deg, #DC143C, #FF8C00); }
+body.theme-durga .festival-banner { background: linear-gradient(135deg, #DC143C, #DAA520); }
+body.theme-diwali .festival-banner { background: linear-gradient(135deg, #FF6B35, #FFA500); }
+body.theme-christmas .festival-banner { background: linear-gradient(135deg, #B22222, #006400); }
+body.theme-eid .festival-banner { background: linear-gradient(135deg, #0d7a4f, #c3a35f); }
+body.theme-onam .festival-banner { background: linear-gradient(135deg, #c3a35f, #5b21b6); }
+body.theme-pongal .festival-banner { background: linear-gradient(135deg, #e8a838, #15803d); }
+body.theme-baisakhi .festival-banner { background: linear-gradient(135deg, #f5a623, #b91c1c); }
+body.theme-dussehra .festival-banner { background: linear-gradient(135deg, #b91c1c, #f59e0b); }
+body.theme-gurpurab .festival-banner { background: linear-gradient(135deg, #ffa500, #003366); }
+body.theme-shivratri .festival-banner { background: linear-gradient(135deg, #1a237e, #d4af37); }
+@keyframes festival-banner-slide { from { transform: translate(-50%, -100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+/* ============================================
+   🎬 CINEMATIC INTRO — Full-screen festival intro
+   ============================================ */
+.festival-intro-overlay {
+  position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center;
+  background: #000; overflow: hidden; cursor: pointer;
+}
+.festival-intro-overlay.skip { opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
+
+/* Intro background per theme */
+.festival-intro-overlay.intro-lohri { background: radial-gradient(ellipse at center, #4A0E0E 0%, #1a0500 100%); }
+.festival-intro-overlay.intro-sankranti { background: radial-gradient(ellipse at center, #87CEEB 0%, #003366 100%); }
+.festival-intro-overlay.intro-republic { background: radial-gradient(ellipse at center, #000080 0%, #000033 100%); }
+.festival-intro-overlay.intro-holi { background: radial-gradient(ellipse at center, #4B0082 0%, #1a0033 100%); }
+.festival-intro-overlay.intro-ganesh { background: radial-gradient(ellipse at center, #FF8C00 0%, #654321 100%); }
+.festival-intro-overlay.intro-janmashtami { background: radial-gradient(ellipse at center, #0c4a6e 0%, #0a1a3a 100%); }
+.festival-intro-overlay.intro-independence { background: radial-gradient(ellipse at center, #000080 0%, #000033 100%); }
+.festival-intro-overlay.intro-rakhi { background: radial-gradient(ellipse at center, #8B0000 0%, #2C0000 100%); }
+.festival-intro-overlay.intro-navratri { background: radial-gradient(ellipse at center, #4B0082 0%, #2C0010 100%); }
+.festival-intro-overlay.intro-durga { background: radial-gradient(ellipse at center, #8B0000 0%, #2C0000 100%); }
+.festival-intro-overlay.intro-diwali { background: radial-gradient(ellipse at center, #2C1810 0%, #000000 100%); }
+.festival-intro-overlay.intro-christmas { background: radial-gradient(ellipse at center, #001a00 0%, #000000 100%); }
+.festival-intro-overlay.intro-eid { background: radial-gradient(ellipse at center, #003319 0%, #001a0d 100%); }
+.festival-intro-overlay.intro-onam { background: radial-gradient(ellipse at center, #3b0764 0%, #1a0533 100%); }
+.festival-intro-overlay.intro-pongal { background: radial-gradient(ellipse at center, #15803d 0%, #0a3d1e 100%); }
+.festival-intro-overlay.intro-baisakhi { background: radial-gradient(ellipse at center, #b91c1c 0%, #3d0000 100%); }
+.festival-intro-overlay.intro-dussehra { background: radial-gradient(ellipse at center, #7f1d1d 0%, #1a0000 100%); }
+.festival-intro-overlay.intro-gurpurab { background: radial-gradient(ellipse at center, #001a33 0%, #000d1a 100%); }
+.festival-intro-overlay.intro-shivratri { background: radial-gradient(ellipse at center, #0d1845 0%, #050a1a 100%); }
+
+/* Intro content */
+.festival-intro-content { text-align: center; z-index: 2; padding: 20px; }
+.festival-intro-emoji {
+  font-size: 80px; margin-bottom: 20px; display: inline-block;
+  animation: intro-emoji-reveal 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes intro-emoji-reveal {
+  0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+  60% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.festival-intro-greeting {
+  color: #FFFFFF; font-size: 28px; font-weight: 700; margin: 0 0 16px; text-align: center;
+  font-family: 'Playfair Display', Georgia, serif;
+  animation: intro-text-slide 1.5s 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  text-shadow: 0 2px 20px rgba(255,255,255,0.3);
+  max-width: 600px;
+}
+@keyframes intro-text-slide { 0% { transform: translateY(30px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
+.festival-intro-logo {
+  color: #FFD700; font-size: 36px; font-weight: 800; margin: 24px 0 8px;
+  font-family: 'Playfair Display', Georgia, serif; letter-spacing: 3px;
+  animation: intro-logo-glow 2s 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes intro-logo-glow {
+  0% { opacity: 0; transform: scale(0.8); filter: blur(10px); }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); text-shadow: 0 0 30px rgba(255,215,0,0.6), 0 0 60px rgba(255,215,0,0.3); }
+}
+
+.festival-intro-tagline {
+  color: rgba(255,255,255,0.8); font-size: 15px; font-weight: 400; margin: 0;
+  animation: intro-text-slide 1.5s 1.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Skip button */
+.festival-intro-skip {
+  position: fixed; bottom: 30px; right: 30px; z-index: 100000;
+  padding: 10px 24px; background: rgba(255,255,255,0.15); color: #FFFFFF;
+  border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; cursor: pointer;
+  font-size: 13px; font-weight: 600; backdrop-filter: blur(10px);
+  transition: all 0.2s ease; animation: intro-skip-fade 1s 2s both;
+}
+.festival-intro-skip:hover { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); }
+@keyframes intro-skip-fade { 0% { opacity: 0; } 100% { opacity: 1; } }
+
+/* Intro particles */
+.festival-intro-particle {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  animation: intro-particle-float linear infinite;
+}
+@keyframes intro-particle-float {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+}
+
+/* ============================================
+   🎨 ADMIN THEME SELECTOR — preview cards
+   ============================================ */
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.theme-card { background: var(--pf-white); border: 2px solid var(--pf-border); border-radius: 14px; overflow: hidden; cursor: pointer; transition: all 0.3s; position: relative; }
+.theme-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.15); }
+.theme-card.active { border-color: var(--pf-gold); box-shadow: 0 0 0 4px rgba(196,154,69,0.20); }
+.theme-preview { height: 90px; display: flex; align-items: center; justify-content: center; font-size: 36px; }
+.theme-preview-default { background: linear-gradient(135deg, #F8F5EF, #E9DFD1); color: #C49A45; }
+.theme-preview-lohri { background: linear-gradient(135deg, #FFF5EB, #E25822); color: #4A0E0E; }
+.theme-preview-sankranti { background: linear-gradient(135deg, #87CEEB, #FFD700); color: #004080; }
+.theme-preview-republic { background: linear-gradient(180deg, #FF9933 33%, #FFF 33%, #FFF 66%, #138808 66%); color: #000080; }
+.theme-preview-holi { background: linear-gradient(135deg, #FF1493, #00BFFF, #FFD700); color: #FFF; }
+.theme-preview-ganesh { background: linear-gradient(135deg, #FF8C00, #DAA520); color: #FFF; }
+.theme-preview-janmashtami { background: linear-gradient(135deg, #1e3a8a, #DAA520); color: #FFF; }
+.theme-preview-independence { background: linear-gradient(180deg, #FF9933 33%, #FFF 33%, #FFF 66%, #138808 66%); color: #000080; }
+.theme-preview-rakhi { background: linear-gradient(135deg, #FFB6C1, #DC143C); color: #FFF; }
+.theme-preview-navratri { background: linear-gradient(135deg, #DC143C, #FF8C00, #8B008B); color: #FFF; }
+.theme-preview-durga { background: linear-gradient(135deg, #DC143C, #DAA520); color: #FFF; }
+.theme-preview-diwali { background: linear-gradient(135deg, #FFF4E6, #FFA500); color: #8B0000; }
+.theme-preview-christmas { background: linear-gradient(135deg, #B22222, #006400); color: #FFD700; }
+.theme-preview-eid { background: linear-gradient(135deg, #0d7a4f, #c3a35f); color: #FFF; }
+.theme-preview-onam { background: linear-gradient(135deg, #c3a35f, #5b21b6); color: #FFF; }
+.theme-preview-pongal { background: linear-gradient(135deg, #e8a838, #15803d); color: #FFF; }
+.theme-preview-baisakhi { background: linear-gradient(135deg, #f5a623, #b91c1c); color: #FFF; }
+.theme-preview-dussehra { background: linear-gradient(135deg, #b91c1c, #f59e0b); color: #FFF; }
+.theme-preview-gurpurab { background: linear-gradient(135deg, #ffa500, #003366); color: #FFF; }
+.theme-preview-shivratri { background: linear-gradient(135deg, #1a237e, #d4af37); color: #FFF; }
+.theme-info { padding: 12px 14px; text-align: center; }
+.theme-name { font-size: 14px; font-weight: 700; color: var(--pf-chocolate); margin-bottom: 2px; }
+.theme-desc { font-size: 11px; color: var(--pf-text-muted); }
+.theme-active-badge { position: absolute; top: 6px; right: 6px; background: #22c55e; color: #FFF; font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 999px; text-transform: uppercase; }
+.theme-auto-badge { position: absolute; top: 6px; right: 6px; background: #8b5cf6; color: #FFF; font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 999px; text-transform: uppercase; }
+
+/* ============================================
+   🎨 USER THEME SELECTOR — floating button + modal
+   ============================================ */
+.theme-selector-fab {
+  position: fixed; bottom: 80px; left: 20px; z-index: 9000;
+  width: 50px; height: 50px; border-radius: 50%; cursor: pointer;
+  background: linear-gradient(135deg, var(--pf-gold), var(--pf-gold-deep));
+  border: 2px solid var(--pf-white); color: var(--pf-white); font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: all 0.3s ease;
+}
+.theme-selector-fab:hover { transform: scale(1.1) rotate(15deg); box-shadow: 0 12px 32px rgba(196,154,69,0.4); }
+
+.theme-selector-modal {
+  position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: modal-fade-in 0.3s ease;
+}
+@keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.theme-selector-content {
+  background: var(--pf-white); border-radius: 20px; padding: 28px; max-width: 600px; width: 100%;
+  max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  animation: modal-slide-up 0.4s cubic-bezier(0.22,1,0.36,1);
+}
+@keyframes modal-slide-up { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* ============================================
+   📱 MOBILE + ACCESSIBILITY
+   ============================================ */
+@media (max-width: 768px) {
+  body[class*="theme-"]::before, body[class*="theme-"]::after { font-size: 28px; }
+  .festival-intro-greeting { font-size: 20px; }
+  .festival-intro-logo { font-size: 28px; }
+  .festival-intro-emoji { font-size: 60px; }
+  .festival-banner { font-size: 11px; padding: 5px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[class*="theme-"]::before, body[class*="theme-"]::after,
+  .festival-intro-emoji, .festival-intro-greeting, .festival-intro-logo,
+  .festival-intro-tagline, .festival-intro-particle {
+    animation: none !important;
+  }
+}
