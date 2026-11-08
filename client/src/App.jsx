@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { FaTimes } from 'react-icons/fa';
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import Home from './pages/Home';
@@ -29,16 +31,27 @@ import './festival/festival.css';
 const AppContent = () => {
   const { themeInfo } = useFestival();
   const isFestival = themeInfo.isFestival;
+  const [bannerClosed, setBannerClosed] = useState(false);
 
   return (
     <>
       {/* 🎬 Cinematic festival intro — shows on EVERY refresh */}
       <FestivalIntro />
 
-      {/* 🎨 Festival banner — shows when festival theme is active */}
-      {isFestival && (
+      {/* 🎉 Festival banner — full-width elegant ribbon */}
+      {isFestival && !bannerClosed && (
         <div className="festival-banner">
-          {themeInfo.emoji} Happy {themeInfo.name}! {themeInfo.emoji}
+          <span className="festival-banner-emoji">{themeInfo.emoji}</span>
+          <span className="festival-banner-text">Happy {themeInfo.name}</span>
+          <span className="festival-banner-brand">PRADH DESI FUEL</span>
+          <span className="festival-banner-emoji">{themeInfo.emoji}</span>
+          <button
+            className="festival-banner-close"
+            onClick={() => setBannerClosed(true)}
+            aria-label="Close banner"
+          >
+            <FaTimes />
+          </button>
         </div>
       )}
 

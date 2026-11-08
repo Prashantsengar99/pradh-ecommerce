@@ -416,15 +416,60 @@ body[class*="theme-"] * { transition: background-color 0.4s ease, border-color 0
 body[class*="theme-"] button:hover, body[class*="theme-"] a:hover, body[class*="theme-"] input:focus { transition: all 0.2s ease; }
 
 /* ============================================
-   🎉 FESTIVAL BANNER — top greeting bar
+   🎉 FESTIVAL BANNER — Full-width elegant ribbon at top
+   Beautiful gradient + shimmer effect + proper positioning
    ============================================ */
 .festival-banner {
-  position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 9991;
-  padding: 6px 24px; border-radius: 0 0 12px 12px; font-size: 13px; font-weight: 700;
-  color: #FFFFFF; text-align: center; letter-spacing: 1px; text-transform: uppercase;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: festival-banner-slide 0.6s cubic-bezier(0.22,1,0.36,1);
-  white-space: nowrap;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9991;
+  padding: 8px 40px; font-size: 14px; font-weight: 700;
+  color: #FFFFFF; text-align: center; letter-spacing: 0.5px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  animation: festival-banner-slide 0.6s cubic-bezier(0.22,1,0.36,1);
+  overflow: hidden; position: relative;
 }
+/* Shimmer effect overlay */
+.festival-banner::before {
+  content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: banner-shimmer 3s infinite;
+}
+@keyframes banner-shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+.festival-banner-emoji {
+  font-size: 18px; display: inline-block; animation: banner-emoji-bounce 2s ease-in-out infinite;
+}
+@keyframes banner-emoji-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.festival-banner-text {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 15px; font-weight: 600; letter-spacing: 1px;
+}
+.festival-banner-brand {
+  font-size: 11px; opacity: 0.85; font-weight: 400; letter-spacing: 2px; text-transform: uppercase;
+}
+.festival-banner-close {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  background: rgba(255,255,255,0.2); border: none; color: #FFFFFF;
+  width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; transition: all 0.2s ease; line-height: 1;
+}
+.festival-banner-close:hover { background: rgba(255,255,255,0.35); transform: translateY(-50%) scale(1.1); }
+/* When banner is shown, push navbar down */
+body:has(.festival-banner) .navbar,
+body:has(.festival-banner) .pf-navbar {
+  margin-top: 38px;
+}
+body:has(.festival-banner.hidden) .navbar,
+body:has(.festival-banner.hidden) .pf-navbar {
+  margin-top: 0;
+}
+.festival-banner.hidden { display: none; }
 body.theme-lohri .festival-banner { background: linear-gradient(135deg, #E25822, #FFB347); }
 body.theme-sankranti .festival-banner { background: linear-gradient(135deg, #87CEEB, #FFD700); }
 body.theme-republic .festival-banner { background: linear-gradient(135deg, #FF9933, #138808); }
@@ -604,7 +649,11 @@ body.theme-shivratri .festival-banner { background: linear-gradient(135deg, #1a2
   .festival-intro-greeting { font-size: 20px; }
   .festival-intro-logo { font-size: 28px; }
   .festival-intro-emoji { font-size: 60px; }
-  .festival-banner { font-size: 11px; padding: 5px 16px; }
+  .festival-banner { padding: 6px 36px; font-size: 12px; }
+  .festival-banner-text { font-size: 13px; }
+  .festival-banner-brand { display: none; }
+  body:has(.festival-banner) .navbar,
+  body:has(.festival-banner) .pf-navbar { margin-top: 34px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
