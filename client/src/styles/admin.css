@@ -1324,3 +1324,84 @@
     animation: none !important;
   }
 }
+/* ============================================
+   🔧 SIDEBAR SCROLL FIX — Better scrollbar + festival banner offset
+   ============================================ */
+
+/* Make scrollbar thicker and more visible */
+.sidebar {
+  overflow-y: auto !important;
+  height: 100vh !important;
+  padding-top: 22px !important;
+}
+
+/* Thicker, visible scrollbar */
+.sidebar::-webkit-scrollbar {
+  width: 8px !important;
+}
+.sidebar::-webkit-scrollbar-track {
+  background: var(--pf-beige, #E9DFD1) !important;
+  border-radius: 10px !important;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--pf-gold, #C49A45) !important;
+  border-radius: 10px !important;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--pf-gold-deep, #A67C2E) !important;
+}
+
+/* Firefox scrollbar */
+.sidebar {
+  scrollbar-width: auto !important;
+  scrollbar-color: var(--pf-gold, #C49A45) var(--pf-beige, #E9DFD1) !important;
+}
+
+/* When festival banner is active, push sidebar down to avoid overlap */
+body:has(.festival-banner) .sidebar {
+  padding-top: 50px !important;
+}
+
+/* Ensure nav has enough height for all items */
+.sidebar nav {
+  padding-bottom: 20px;
+}
+
+/* Smooth scroll */
+.sidebar {
+  scroll-behavior: smooth;
+}
+
+/* ============================================
+   🔧 FIX: Hide festival banner on admin + sidebar scroll
+   ============================================ */
+
+/* Hide festival banner on admin pages */
+.festival-banner { display: none !important; }
+
+/* Reset navbar margin on admin pages (festival banner removed) */
+.navbar, .pf-navbar { margin-top: 0 !important; }
+
+/* Sidebar — proper scroll + visible scrollbar */
+.sidebar {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100vh !important;
+  position: fixed !important;
+  top: 0 !important;
+  padding-top: 22px !important;
+  z-index: 1001 !important;
+}
+
+/* Visible scrollbar */
+.sidebar::-webkit-scrollbar { width: 8px !important; }
+.sidebar::-webkit-scrollbar-track { background: var(--pf-beige, #E9DFD1) !important; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--pf-gold, #C49A45) !important; border-radius: 10px !important; }
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--pf-gold-deep, #A67C2E) !important; }
+.sidebar { scrollbar-width: auto !important; scrollbar-color: var(--pf-gold, #C49A45) var(--pf-beige, #E9DFD1) !important; }
+
+/* Nav — ensure all items visible */
+.sidebar nav { padding-bottom: 30px !important; }
+
+/* Logout button always visible */
+.nav-item:last-child { margin-top: 20px !important; }
