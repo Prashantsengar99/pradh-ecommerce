@@ -1,8 +1,11 @@
 /* =====================================================================
    PRADH DESI FUEL — NAVBAR
    Warm Editorial Luxury Design System
+   Palette: Cream / Beige / Sand / Earth Brown / Chocolate / Gold
+   Type:    Playfair Display (brand) + Inter (body)
    ===================================================================== */
 
+/* ---------- Design Tokens (with fallbacks so navbar works standalone) ---------- */
 :root {
   --pf-cream: #F8F5EF;
   --pf-beige: #E9DFD1;
@@ -351,7 +354,7 @@
 }
 
 /* =====================================================================
-   BOTTOM NAVIGATION (Mobile only) — BIGGER ICONS & LABELS
+   BOTTOM NAVIGATION (Mobile only)
    ===================================================================== */
 .bottom-nav {
   display: none;
@@ -374,13 +377,13 @@
   align-items: center;
   justify-content: center;
   flex: 1;
-  padding: 10px 4px 8px;
+  padding: 9px 4px 7px;
   color: var(--pf-text-muted);
   text-decoration: none;
-  font-size: 11px;            /* ✅ was 10px → bigger */
+  font-size: 10px;
   font-weight: 600;
   transition: color var(--pf-dur) var(--pf-ease), background var(--pf-dur) var(--pf-ease);
-  min-height: 64px;           /* ✅ was 60px → bigger touch target */
+  min-height: 60px;
   position: relative;
   -webkit-tap-highlight-color: transparent;
   font-family: var(--pf-font-body);
@@ -410,21 +413,20 @@
 }
 
 .bottom-nav-icon {
-  font-size: 22px;            /* ✅ was 20px → bigger icon */
-  margin-bottom: 4px;
+  font-size: 20px;
+  margin-bottom: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  width: 26px;                /* ✅ was 24px */
-  height: 26px;               /* ✅ was 24px */
+  width: 24px;
+  height: 24px;
 }
 
 .bottom-nav-label {
-  font-size: 11px;            /* ✅ was 10px → readable */
+  font-size: 10px;
   line-height: 1;
   white-space: nowrap;
-  font-weight: 600;
 }
 
 .bottom-nav-badge {
@@ -638,21 +640,24 @@
     max-width: 400px;
   }
 
+  /* Show bottom nav */
   .bottom-nav {
     display: flex;
   }
 
+  /* Hide Account + Cart from top navbar (they live in bottom nav now) */
   .nav-right .nav-icon-btn {
     display: none;
   }
 
+  /* Add bottom padding to body for bottom nav */
   body {
-    padding-bottom: 76px;     /* ✅ matches taller bottom nav */
+    padding-bottom: 72px;
   }
 }
 
 /* =====================================================================
-   RESPONSIVE — MOBILE (600px) — KEEP ICONS BIG, DON'T SHRINK!
+   RESPONSIVE — MOBILE (600px)
    ===================================================================== */
 @media (max-width: 600px) {
   .navbar-inner {
@@ -717,6 +722,7 @@
     display: none;
   }
 
+  /* Suggestions dropdown spans full width on mobile */
   .search-suggestions {
     left: -4px;
     right: -4px;
@@ -735,24 +741,21 @@
     font-size: 12px;
   }
 
-  /* ✅ BOTTOM NAV — KEEP ICONS & LABELS BIG (don't shrink like before!) */
-  .bottom-nav-item {
-    padding: 10px 4px 8px;
-    min-height: 62px;
+  .bottom-nav-label {
+    font-size: 9px;
   }
 
   .bottom-nav-icon {
-    font-size: 22px;          /* ✅ was 18px → now stays big! */
-    width: 26px;
-    height: 26px;
+    font-size: 18px;
   }
 
-  .bottom-nav-label {
-    font-size: 11px;          /* ✅ was 9px → now stays readable! */
+  .bottom-nav-item {
+    padding: 8px 2px 6px;
+    min-height: 58px;
   }
 
   body {
-    padding-bottom: 74px;     /* ✅ matches bottom nav height */
+    padding-bottom: 68px;
   }
 }
 
@@ -797,24 +800,21 @@
     font-size: 13px;
   }
 
-  /* ✅ Still readable — slightly smaller but NOT tiny */
-  .bottom-nav-item {
-    min-height: 58px;
-    padding: 8px 2px 6px;
+  .bottom-nav-label {
+    font-size: 8px;
   }
 
   .bottom-nav-icon {
-    font-size: 20px;          /* ✅ was 17px → now 20px */
-    width: 24px;
-    height: 24px;
+    font-size: 17px;
   }
 
-  .bottom-nav-label {
-    font-size: 10px;          /* ✅ was 8px → now 10px */
+  .bottom-nav-item {
+    min-height: 54px;
+    padding: 6px 2px 4px;
   }
 
   body {
-    padding-bottom: 70px;     /* ✅ was 64px */
+    padding-bottom: 64px;
   }
 }
 
@@ -835,13 +835,12 @@
     font-size: 10px;
   }
 
-  /* ✅ Even on tiny screens, keep icons usable */
-  .bottom-nav-icon {
-    font-size: 18px;          /* ✅ was 16px → now 18px */
+  .bottom-nav-label {
+    font-size: 7px;
   }
 
-  .bottom-nav-label {
-    font-size: 9px;           /* ✅ was 7px → now 9px (still readable) */
+  .bottom-nav-icon {
+    font-size: 16px;
   }
 }
 
@@ -930,4 +929,168 @@
   .cart-badge {
     animation: none !important;
   }
+}
+/* ============================================
+   🌙 DARK MODE PRO — Dropdown inside navbar
+   ============================================ */
+
+/* Dropdown wrapper — relative for positioning */
+.darkmode-dropdown-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Toggle button (in navbar) */
+.darkmode-toggle {
+  background: transparent;
+  border: 1px solid var(--pf-border, rgba(57, 37, 27, 0.10));
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--pf-gold-deep, #A67C2E);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  width: 40px;
+  height: 40px;
+}
+
+.darkmode-toggle:hover {
+  border-color: var(--pf-gold, #C49A45);
+  background: rgba(196, 154, 69, 0.08);
+  color: var(--pf-gold, #C49A45);
+}
+
+html.dark-mode .darkmode-toggle {
+  background: rgba(245, 240, 235, 0.06);
+  border-color: rgba(245, 240, 235, 0.08);
+  color: #D9B872;
+}
+
+html.dark-mode .darkmode-toggle:hover {
+  border-color: #C49A45;
+  background: rgba(196, 154, 69, 0.12);
+}
+
+/* Desktop dropdown menu */
+.darkmode-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: var(--pf-white, #FFFFFF);
+  border: 1px solid var(--pf-border, rgba(57, 37, 27, 0.10));
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(57, 37, 27, 0.18);
+  padding: 8px;
+  z-index: 10000;
+  animation: darkmodeMenuSlide 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html.dark-mode .darkmode-dropdown-menu {
+  background: #1f1d1a;
+  border-color: rgba(245, 240, 235, 0.08);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.40);
+}
+
+@keyframes darkmodeMenuSlide {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.darkmode-dropdown-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--pf-text-muted, #8A7560);
+  padding: 8px 12px 6px;
+}
+
+html.dark-mode .darkmode-dropdown-header {
+  color: #8a7a65;
+}
+
+.darkmode-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--pf-text-soft, #5C4A3D);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  text-align: left;
+  position: relative;
+}
+
+html.dark-mode .darkmode-dropdown-item {
+  color: #c4b5a0;
+}
+
+.darkmode-dropdown-item:hover {
+  background: rgba(196, 154, 69, 0.08);
+  color: var(--pf-chocolate, #39251B);
+}
+
+html.dark-mode .darkmode-dropdown-item:hover {
+  background: rgba(245, 240, 235, 0.06);
+  color: #f5f0eb;
+}
+
+.darkmode-dropdown-item.active {
+  background: linear-gradient(135deg, rgba(196, 154, 69, 0.12), rgba(196, 154, 69, 0.06));
+  color: var(--pf-gold-deep, #A67C2E);
+  font-weight: 700;
+}
+
+html.dark-mode .darkmode-dropdown-item.active {
+  background: rgba(196, 154, 69, 0.12);
+  color: #D9B872;
+}
+
+.darkmode-dropdown-item svg {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.darkmode-dropdown-hint {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--pf-text-muted, #8A7560);
+  opacity: 0.7;
+}
+
+html.dark-mode .darkmode-dropdown-hint {
+  color: #8a7a65;
+}
+
+/* Mobile floating menu */
+.darkmode-mobile-menu {
+  position: fixed;
+  bottom: 70px;
+  right: 12px;
+  min-width: 160px;
+  background: var(--pf-white, #FFFFFF);
+  border: 1px solid var(--pf-border, rgba(57, 37, 27, 0.10));
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(57, 37, 27, 0.18);
+  padding: 8px;
+  z-index: 10000;
+  animation: darkmodeMenuSlide 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html.dark-mode .darkmode-mobile-menu {
+  background: #1f1d1a;
+  border-color: rgba(245, 240, 235, 0.08);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.40);
 }

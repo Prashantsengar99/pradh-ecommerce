@@ -1,24 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaSearch, FaShoppingCart, FaUser, FaHome, FaBox, FaLeaf, FaEnvelope, FaShoppingBag, FaTimes, FaMoon, FaSun } from 'react-icons/fa';
+import { FaSearch, FaShoppingCart, FaUser, FaHome, FaBox, FaLeaf, FaEnvelope, FaShoppingBag, FaTimes, FaMoon, FaSun, FaMagic } from 'react-icons/fa';
 import { apiFetch } from '../../services/api';
+import { useDarkMode } from '../../hooks/useDarkMode';
 import '../../styles/navbar.css';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
-  // ✅ Dark Mode toggle (testing — easy to remove)
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('pradh_dark') === 'true');
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-    localStorage.setItem('pradh_dark', String(darkMode));
-  }, [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode(!darkMode);
+  const { mode, setMode } = useDarkMode();
+  const [darkMenuOpen, setDarkMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [allProducts, setAllProducts] = useState([]);
@@ -29,6 +19,8 @@ const Navbar = () => {
   const navigate = useNavigate();
   const searchRef = useRef(null);
   const suggestionsRef = useRef(null);
+  const darkMenuRef = useRef(null);        // desktop dropdown
+  const darkMobileMenuRef = useRef(null);  // mobile menu — SEPARATE ref!
 
   // Scroll effect
   useEffect(() => {
@@ -37,8 +29,7 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // ✅ FIXED: Removed 1.5s setInterval polling — sirf 'storage' event use karte hain
-  // (cart update tabhi hota hai jab koi item add/remove ho, polling ki zaroorat nahi)
+  // Cart count
   useEffect(() => {
     const updateCart = () => {
       try {
@@ -51,7 +42,6 @@ const Navbar = () => {
     };
     updateCart();
     window.addEventListener('storage', updateCart);
-    // ✅ Also listen for custom 'storage' events dispatched by cart actions
     window.addEventListener('cart-updated', updateCart);
     return () => {
       window.removeEventListener('storage', updateCart);
@@ -59,9 +49,7 @@ const Navbar = () => {
     };
   }, []);
 
-  // ✅ FIXED: Use apiFetch with PUBLIC /api/products endpoint (was raw fetch /api/admin/products)
-  // /api/admin/products needs admin token → 401 for normal users + raw fetch breaks on Vercel
-  // /api/products is public, returns only active products, works with apiFetch (VITE_API_URL)
+  // Fetch products for search
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -87,7 +75,7 @@ const Navbar = () => {
     fetchProducts();
   }, []);
 
-  // ✅ Live search filtering
+  // Live search filtering
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setSuggestions([]);
@@ -108,18 +96,25 @@ const Navbar = () => {
     setHighlightedIndex(-1);
   }, [searchQuery, allProducts]);
 
-  // ✅ Click outside → close suggestions
+  // Click outside → close (uses 'click' NOT 'mousedown' — mousedown fires before button onClick)
   useEffect(() => {
     const handleClickOutside = (e) => {
+      // Close search suggestions
       if (
         searchRef.current && !searchRef.current.contains(e.target) &&
         suggestionsRef.current && !suggestionsRef.current.contains(e.target)
       ) {
         setShowSuggestions(false);
       }
+      // Close dark mode menu — check BOTH refs
+      const clickedInsideDesktop = darkMenuRef.current && darkMenuRef.current.contains(e.target);
+      const clickedInsideMobile = darkMobileMenuRef.current && darkMobileMenuRef.current.contains(e.target);
+      if (!clickedInsideDesktop && !clickedInsideMobile) {
+        setDarkMenuOpen(false);
+      }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
   const handleSearch = (e) => {
@@ -160,6 +155,12 @@ const Navbar = () => {
     navigate(`/product/${product.id}`);
     setSearchQuery('');
     setShowSuggestions(false);
+  };
+
+  const handleDarkModeSelect = (newMode, e) => {
+    if (e) e.stopPropagation();
+    setMode(newMode);
+    setDarkMenuOpen(false);
   };
 
   const isActive = (path) => location.pathname === path;
@@ -260,7 +261,7 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Right — Desktop Nav Links + Account + Cart */}
+          {/* Right — Desktop Nav Links + Account + Cart + Dark Mode */}
           <div className="nav-right">
             <ul className="nav-links-desktop">
               {navLinks.map((link) => (
@@ -283,10 +284,42 @@ const Navbar = () => {
               {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
             </Link>
 
-            {/* ✅ Dark Mode Toggle (desktop) */}
-            <button className="darkmode-toggle" onClick={toggleDarkMode} title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'} aria-label="Toggle dark mode">
-              {darkMode ? <FaSun /> : <FaMoon />}
-            </button>
+            {/* 🌙 Dark Mode Pro — Dropdown inside navbar */}
+            <div className="darkmode-dropdown-wrapper" ref={darkMenuRef}>
+              <button
+                className="darkmode-toggle"
+                onClick={() => setDarkMenuOpen(!darkMenuOpen)}
+                title="Theme Settings"
+                aria-label="Theme settings"
+              >
+                {mode === 'light' ? <FaSun /> : mode === 'dark' ? <FaMoon /> : <FaMagic />}
+              </button>
+
+              {darkMenuOpen && (
+                <div className="darkmode-dropdown-menu">
+                  <div className="darkmode-dropdown-header">Theme</div>
+                  <button
+                    className={`darkmode-dropdown-item ${mode === 'light' ? 'active' : ''}`}
+                    onClick={(e) => handleDarkModeSelect('light', e)}
+                  >
+                    <FaSun /> Light
+                  </button>
+                  <button
+                    className={`darkmode-dropdown-item ${mode === 'dark' ? 'active' : ''}`}
+                    onClick={(e) => handleDarkModeSelect('dark', e)}
+                  >
+                    <FaMoon /> Dark
+                  </button>
+                  <button
+                    className={`darkmode-dropdown-item ${mode === 'auto' ? 'active' : ''}`}
+                    onClick={(e) => handleDarkModeSelect('auto', e)}
+                  >
+                    <FaMagic /> Auto
+                    <span className="darkmode-dropdown-hint">Follows sunset</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -321,16 +354,43 @@ const Navbar = () => {
           <span className="bottom-nav-label">Cart</span>
         </Link>
 
-        {/* ✅ Dark Mode Toggle (mobile bottom nav) */}
+        {/* 🌙 Dark Mode (mobile bottom nav) */}
         <button
           className="bottom-nav-item"
-          onClick={toggleDarkMode}
-          title={darkMode ? 'Light Mode' : 'Dark Mode'}
-          style={{ border: 'none', background: 'transparent' }}
+          onClick={() => setDarkMenuOpen(!darkMenuOpen)}
+          style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
         >
-          <span className="bottom-nav-icon">{darkMode ? <FaSun /> : <FaMoon />}</span>
-          <span className="bottom-nav-label">{darkMode ? 'Light' : 'Dark'}</span>
+          <span className="bottom-nav-icon">
+            {mode === 'light' ? <FaSun /> : mode === 'dark' ? <FaMoon /> : <FaMagic />}
+          </span>
+          <span className="bottom-nav-label">Theme</span>
         </button>
+
+        {/* Mobile dark mode menu — floating */}
+        {darkMenuOpen && (
+          <div className="darkmode-mobile-menu" ref={darkMobileMenuRef}>
+            <div className="darkmode-dropdown-header">Theme</div>
+            <button
+              className={`darkmode-dropdown-item ${mode === 'light' ? 'active' : ''}`}
+              onClick={(e) => handleDarkModeSelect('light', e)}
+            >
+              <FaSun /> Light
+            </button>
+            <button
+              className={`darkmode-dropdown-item ${mode === 'dark' ? 'active' : ''}`}
+              onClick={(e) => handleDarkModeSelect('dark', e)}
+            >
+              <FaMoon /> Dark
+            </button>
+            <button
+              className={`darkmode-dropdown-item ${mode === 'auto' ? 'active' : ''}`}
+              onClick={(e) => handleDarkModeSelect('auto', e)}
+            >
+              <FaMagic /> Auto
+              <span className="darkmode-dropdown-hint">Follows sunset</span>
+            </button>
+          </div>
+        )}
       </nav>
     </>
   );

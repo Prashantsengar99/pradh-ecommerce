@@ -49,9 +49,11 @@ export const FestivalProvider = ({ children }) => {
         const data = await res.json();
         if (data.success && data.activeTheme) {
           if (data.activeTheme === 'auto') {
-            setAdminTheme(null); // Use auto-detection
-          } else if (data.activeTheme !== 'default') {
-            setAdminTheme(data.activeTheme); // Admin set specific theme
+            // 'auto' → clear admin override, let festival calendar decide
+            setAdminTheme(null);
+          } else {
+            // 'default' OR specific festival → set explicitly (overrides auto-detection)
+            setAdminTheme(data.activeTheme);
           }
         }
       } catch {

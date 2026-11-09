@@ -2,7 +2,7 @@ import { apiFetch } from '../../services/api';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AreaChart, Area, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
@@ -11,7 +11,7 @@ import {
   FaTruck, FaReceipt, FaRupeeSign, FaBars,
   FaArrowUp, FaArrowDown, FaClock, FaExclamationTriangle, FaBell,
   FaChartLine, FaShoppingCart, FaBoxOpen, FaUndoAlt, FaCheck, FaBan, FaWhatsapp,
-  FaGift, FaEnvelope, FaPaperPlane, FaInbox, FaFilePdf, FaPalette,
+  FaGift, FaEnvelope, FaPaperPlane, FaInbox, FaFilePdf, FaPalette, FaMapMarkerAlt,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import '../../styles/admin.css';
@@ -839,6 +839,58 @@ const AdminPanel = () => {
 
   const deliveredOrders = orders.filter((o) => o.status === 'delivered');
 
+  // 📊 ANALYTICS PRO — Advanced metrics (AFTER topProducts etc. are defined)
+  const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
+  const cancelledOrders = orders.filter(o => o.status === 'cancelled').length;
+  const cancellationRate = orders.length > 0 ? (cancelledOrders / orders.length * 100).toFixed(1) : 0;
+
+  // Customer Retention
+  const customerOrderCounts = {};
+  orders.forEach(o => {
+    const phone = o.customer?.phone;
+    if (phone) customerOrderCounts[phone] = (customerOrderCounts[phone] || 0) + 1;
+  });
+  const repeatCustomers = Object.values(customerOrderCounts).filter(c => c > 1).length;
+  const retentionRate = uniqueCustomers > 0 ? (repeatCustomers / uniqueCustomers * 100).toFixed(1) : 0;
+
+  // Payment Method Breakdown
+  const paymentBreakdown = {};
+  orders.forEach(o => {
+    const method = o.customer?.paymentMethod || 'Unknown';
+    paymentBreakdown[method] = (paymentBreakdown[method] || 0) + 1;
+  });
+  const paymentData = Object.entries(paymentBreakdown).map(([name, value]) => ({ name, value }));
+  const PAYMENT_COLORS = ['#C49A45', '#22c55e', '#3b82f6', '#8b5cf6', '#ef4444'];
+
+  // Product Performance Bar Chart Data (now topProducts is defined above)
+  const productBarData = topProducts.map(p => ({
+    name: p.name?.length > 12 ? p.name.substring(0, 10) + '...' : p.name,
+    Revenue: Math.round(p.revenue),
+    Qty: p.qty,
+  }));
+
+  // Monthly Revenue Comparison
+  const monthlyComparisonData = [
+    { month: 'Last Month', Revenue: Math.round(lastMonthRevenue), Orders: lastMonthOrders.length },
+    { month: 'This Month', Revenue: Math.round(thisMonthRevenue), Orders: thisMonthOrders.length },
+  ];
+
+  // Growth Rate
+  const growthRate = lastMonthRevenue > 0 ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1) : '0';
+
+  // Revenue by City (top 5)
+  const cityRevenue = {};
+  orders.forEach(o => {
+    const city = o.customer?.city || 'Unknown';
+    if (!cityRevenue[city]) cityRevenue[city] = { revenue: 0, orders: 0 };
+    cityRevenue[city].revenue += parseFloat(o.total) || 0;
+    cityRevenue[city].orders += 1;
+  });
+  const topCities = Object.entries(cityRevenue)
+    .map(([city, data]) => ({ city, ...data }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
   const menuItems = [
     { key: 'dashboard', icon: <FaChartPie />, label: 'Dashboard' },
     { key: 'products', icon: <FaBox />, label: 'Products', badge: products.length },
@@ -949,6 +1001,136 @@ const AdminPanel = () => {
                   <div className="stat-value-enhanced">{uniqueCustomers}</div>
                   <div className="stat-label-enhanced">Total Customers</div>
                   <div className="stat-trend neutral">All time</div>
+                </div>
+              </div>
+
+              {/* 📊 ANALYTICS PRO — Second row stat cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div className="stat-card-enhanced">
+                  <div className="stat-card-top">
+                    <div className="stat-icon-box brown"><FaRupeeSign /></div>
+                  </div>
+                  <div className="stat-value-enhanced">₹{avgOrderValue.toFixed(0)}</div>
+                  <div className="stat-label-enhanced">Avg Order Value</div>
+                  <div className="stat-trend neutral">Per order</div>
+                </div>
+                <div className="stat-card-enhanced">
+                  <div className="stat-card-top">
+                    <div className="stat-icon-box green"><FaCheck /></div>
+                  </div>
+                  <div className="stat-value-enhanced">{retentionRate}%</div>
+                  <div className="stat-label-enhanced">Customer Retention</div>
+                  <div className="stat-trend up">{repeatCustomers} repeat customers</div>
+                </div>
+                <div className="stat-card-enhanced">
+                  <div className="stat-card-top">
+                    <div className="stat-icon-box red"><FaBan /></div>
+                  </div>
+                  <div className="stat-value-enhanced">{cancellationRate}%</div>
+                  <div className="stat-label-enhanced">Cancellation Rate</div>
+                  <div className="stat-trend down">{cancelledOrders} cancelled</div>
+                </div>
+                <div className="stat-card-enhanced">
+                  <div className="stat-card-top">
+                    <div className="stat-icon-box yellow"><FaChartLine /></div>
+                  </div>
+                  <div className="stat-value-enhanced">{growthRate}%</div>
+                  <div className="stat-label-enhanced">Growth Rate</div>
+                  <div className={`stat-trend ${growthRate >= 0 ? 'up' : 'down'}`}>
+                    {growthRate >= 0 ? <FaArrowUp /> : <FaArrowDown />} vs last month
+                  </div>
+                </div>
+              </div>
+
+              {/* 📊 ANALYTICS PRO — Product Performance Bar Chart + Monthly Comparison */}
+              <div className="dashboard-grid">
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <div className="chart-title"><FaBox className="chart-title-icon" /> Product Performance</div>
+                  </div>
+                  <div className="chart-body">
+                    {productBarData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={productBarData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(57, 37, 27, 0.08)" />
+                          <XAxis dataKey="name" stroke="#8A7560" fontSize={11} angle={-15} textAnchor="end" height={60} />
+                          <YAxis stroke="#8A7560" fontSize={12} />
+                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(57,37,27,0.18)', borderRadius: '10px', color: '#fff' }} formatter={(v, name) => name === 'Revenue' ? [`₹${v}`, 'Revenue'] : [v, 'Quantity']} />
+                          <Legend wrapperStyle={{ fontSize: '12px' }} />
+                          <Bar dataKey="Revenue" fill="#C49A45" radius={[8, 8, 0, 0]} />
+                          <Bar dataKey="Qty" fill="#8A5A3C" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="empty-state"><FaBoxOpen /><p>No sales data yet</p></div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <div className="chart-title"><FaChartLine className="chart-title-icon" /> Monthly Comparison</div>
+                  </div>
+                  <div className="chart-body">
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart data={monthlyComparisonData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(57, 37, 27, 0.08)" />
+                        <XAxis dataKey="month" stroke="#8A7560" fontSize={12} />
+                        <YAxis stroke="#8A7560" fontSize={12} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(57,37,27,0.18)', borderRadius: '10px', color: '#fff' }} formatter={(v, name) => name === 'Revenue' ? [`₹${v}`, 'Revenue'] : [v, 'Orders']} />
+                        <Legend wrapperStyle={{ fontSize: '12px' }} />
+                        <Bar dataKey="Revenue" fill="#C49A45" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="Orders" fill="#A67C2E" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              {/* 📊 ANALYTICS PRO — Payment Methods + Top Cities */}
+              <div className="dashboard-grid" style={{ marginBottom: '20px' }}>
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <div className="chart-title"><FaReceipt className="chart-title-icon" /> Payment Methods</div>
+                  </div>
+                  <div className="chart-body">
+                    {paymentData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie data={paymentData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={3} dataKey="value">
+                            {paymentData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={PAYMENT_COLORS[index % PAYMENT_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(57,37,27,0.18)', borderRadius: '10px', color: '#fff' }} />
+                          <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="empty-state"><FaReceipt /><p>No payment data</p></div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="chart-card">
+                  <div className="chart-header">
+                    <div className="chart-title"><FaMapMarkerAlt className="chart-title-icon" /> Revenue by City</div>
+                  </div>
+                  <div className="chart-body">
+                    {topCities.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={topCities.map(c => ({ name: c.city?.length > 10 ? c.city.substring(0, 8) + '...' : c.city, Revenue: Math.round(c.revenue), Orders: c.orders }))} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(57, 37, 27, 0.08)" />
+                          <XAxis type="number" stroke="#8A7560" fontSize={11} />
+                          <YAxis type="category" dataKey="name" stroke="#8A7560" fontSize={11} width={80} />
+                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(57,37,27,0.18)', borderRadius: '10px', color: '#fff' }} formatter={(v) => [`₹${v}`, 'Revenue']} />
+                          <Bar dataKey="Revenue" fill="#C49A45" radius={[0, 8, 8, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="empty-state"><FaMapMarkerAlt /><p>No city data</p></div>
+                    )}
+                  </div>
                 </div>
               </div>
 

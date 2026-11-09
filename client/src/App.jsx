@@ -26,6 +26,7 @@ import FestivalIntro from './festival/FestivalIntro';
 
 import './styles/global.css';
 import './festival/festival.css';
+import './styles/darkmode-pro.css';
 
 // Inner component that uses festival context
 const AppContent = () => {
