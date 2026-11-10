@@ -398,3 +398,194 @@
     font-size: 32px;
   }
 }
+
+/* ============================================
+   🛡️ BRUTE-FORCE PROTECTION STYLES
+   Warm Editorial Luxury Edition — adapted to
+   cream / chocolate / gold palette.
+   ============================================ */
+
+/* Attempts Progress Bar */
+.attempts-progress {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(196, 100, 60, 0.06);
+  border: 1px solid rgba(196, 100, 60, 0.20);
+  border-radius: 12px;
+  animation: fadeInUp 0.3s ease-out;
+}
+.attempts-progress.warning {
+  background: rgba(196, 154, 69, 0.10);
+  border-color: rgba(196, 154, 69, 0.40);
+  animation: pulseWarning 1.6s ease-in-out infinite;
+}
+
+.attempts-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #A0522D;
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-family: 'Inter', sans-serif;
+}
+.attempts-progress.warning .attempts-header {
+  color: #8B6914;
+}
+.attempts-header svg {
+  font-size: 14px;
+}
+.attempts-header strong {
+  color: #39251B;
+  font-weight: 700;
+}
+
+.attempts-bar-track {
+  height: 6px;
+  background: rgba(57, 37, 27, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.attempts-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  background: linear-gradient(90deg, #6B8E23, #C49A45);
+}
+.attempts-bar-fill.warning {
+  background: linear-gradient(90deg, #C49A45, #B8651A);
+}
+.attempts-bar-fill.locked {
+  background: linear-gradient(90deg, #B8651A, #8B2C1A);
+}
+
+.attempts-remaining {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8A7560;
+  font-family: 'Inter', sans-serif;
+}
+.attempts-remaining.warning {
+  color: #8B6914;
+  font-weight: 600;
+}
+
+/* Locked State Warning — warm red on cream */
+.lock-warning {
+  margin-top: 16px;
+  padding: 20px 16px;
+  background: linear-gradient(135deg, rgba(139, 44, 26, 0.10), rgba(196, 100, 60, 0.06));
+  border: 1px solid rgba(139, 44, 26, 0.25);
+  border-radius: 14px;
+  text-align: center;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.lock-icon-big {
+  font-size: 32px;
+  color: #8B2C1A;
+  margin-bottom: 8px;
+  animation: pulseLock 2s ease-in-out infinite;
+}
+
+.lock-title {
+  color: #5C1A0E;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.lock-detail {
+  color: #8B2C1A;
+  font-size: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Inter', sans-serif;
+}
+.lock-detail strong {
+  color: #5C1A0E;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.whatsapp-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(74, 124, 47, 0.10);
+  color: #4A7C2F;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  border: 1px solid rgba(74, 124, 47, 0.25);
+  font-family: 'Inter', sans-serif;
+}
+
+.lock-hint {
+  color: #8A7560;
+  font-size: 11px;
+  margin-top: 4px;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Security Notice (when no attempts yet) — warm gold tint */
+.security-notice {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(196, 154, 69, 0.06);
+  border: 1px solid rgba(196, 154, 69, 0.20);
+  border-radius: 8px;
+  color: #8B6914;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+}
+
+/* Sub Badge (already defined in header — keep this as fallback only) */
+.admin-login-container .sub-badge.locked-variant {
+  background: rgba(139, 44, 26, 0.08);
+  border-color: rgba(139, 44, 26, 0.25);
+  color: #8B2C1A;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseWarning {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 154, 69, 0.25); }
+  50% { box-shadow: 0 0 0 6px rgba(196, 154, 69, 0); }
+}
+@keyframes pulseLock {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.85; }
+}
+
+/* Disabled inputs when locked — soften but keep warm tone */
+.admin-login-container input:disabled,
+.admin-login-container .password-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: rgba(57, 37, 27, 0.04) !important;
+  border-color: rgba(57, 37, 27, 0.08) !important;
+}
+
+/* Login button locked state — muted warm red, not garish */
+.login-btn:disabled {
+  background: linear-gradient(135deg, #C9A78A, #A0856B) !important;
+  color: #FFFFFF !important;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  opacity: 0.7;
+}

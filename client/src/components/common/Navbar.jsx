@@ -357,7 +357,7 @@ const Navbar = () => {
         {/* 🌙 Dark Mode (mobile bottom nav) */}
         <button
           className="bottom-nav-item"
-          onClick={() => setDarkMenuOpen(!darkMenuOpen)}
+          onClick={(e) => { e.stopPropagation(); setDarkMenuOpen(!darkMenuOpen); }}
           style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
         >
           <span className="bottom-nav-icon">

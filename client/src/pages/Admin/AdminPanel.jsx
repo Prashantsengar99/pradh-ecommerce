@@ -12,6 +12,7 @@ import {
   FaArrowUp, FaArrowDown, FaClock, FaExclamationTriangle, FaBell,
   FaChartLine, FaShoppingCart, FaBoxOpen, FaUndoAlt, FaCheck, FaBan, FaWhatsapp,
   FaGift, FaEnvelope, FaPaperPlane, FaInbox, FaFilePdf, FaPalette, FaMapMarkerAlt,
+  FaShieldAlt, FaLock, FaUserShield, FaMobileAlt, FaRedo,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import '../../styles/admin.css';
@@ -50,6 +51,14 @@ const AdminPanel = () => {
     enabled: true,
   });
   const [wheelSaving, setWheelSaving] = useState(false);
+
+  // 🛡️ Login Security State
+  const [loginAttempts, setLoginAttempts] = useState([]);
+  const [loginSecurityConfig, setLoginSecurityConfig] = useState({
+    maxAttemptsBeforeWarning: 3,
+    maxAttemptsBeforeLock: 5,
+    lockDurationMinutes: 30,
+  });
 
   // ✅ Announcement + CTA Settings State
   const [announcementSettings, setAnnouncementSettings] = useState({
@@ -204,6 +213,46 @@ const AdminPanel = () => {
     if (key === 'mail') { loadOrders(); checkEmailStatus(); }
     if (key === 'themes') loadThemeSettings();
     if (key === 'dashboard') loadDashboard();
+    if (key === 'security') loadLoginAttempts();
+  };
+
+  // 🛡️ LOGIN SECURITY — Load failed login attempts history
+  const loadLoginAttempts = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await apiFetch('/api/admin/login-security/attempts?limit=50', {
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLoginAttempts(data.records || []);
+        setLoginSecurityConfig(data.config || loginSecurityConfig);
+      }
+    } catch (err) {
+      console.error('Load login attempts error:', err);
+      toast.error('Failed to load login security data');
+    }
+  };
+
+  const handleClearLock = async (attemptKey) => {
+    if (!window.confirm('Clear this lock and reset attempt counter? This will allow login attempts from this IP/username again.')) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await apiFetch(`/api/admin/login-security/attempts/${encodeURIComponent(attemptKey)}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('✅ Lock cleared successfully');
+        loadLoginAttempts();
+      } else {
+        toast.error(data.error || 'Failed to clear lock');
+      }
+    } catch (err) {
+      console.error('Clear lock error:', err);
+      toast.error('Network error');
+    }
   };
 
   // 🎨 THEME — Load active theme from server
@@ -903,6 +952,7 @@ const AdminPanel = () => {
     { key: 'wheel', icon: <FaGift />, label: 'Spin Wheel' },
     { key: 'announcement', icon: <FaBell />, label: 'Announcement' },
     { key: 'themes', icon: <FaPalette />, label: 'Themes' },
+    { key: 'security', icon: <FaShieldAlt />, label: 'Login Security', badge: loginAttempts.filter(a => a.locked).length },
   ];
 
   return (
@@ -2236,6 +2286,146 @@ const AdminPanel = () => {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ============================================================
+              🛡️ LOGIN SECURITY SECTION — Failed login attempts tracker
+              ============================================================ */}
+          {section === 'security' && (
+            <div className="security-section">
+              <div className="section-header">
+                <h2><FaShieldAlt /> Login Security Center</h2>
+                <button className="btn-refresh" onClick={loadLoginAttempts}>
+                  <FaSync /> Refresh
+                </button>
+              </div>
+
+              {/* Config overview cards */}
+              <div className="security-config-grid">
+                <div className="config-card">
+                  <FaLock className="config-icon" />
+                  <div>
+                    <div className="config-value">{loginSecurityConfig.maxAttemptsBeforeWarning}</div>
+                    <div className="config-label">Attempts before warning</div>
+                  </div>
+                </div>
+                <div className="config-card warning">
+                  <FaExclamationTriangle className="config-icon" />
+                  <div>
+                    <div className="config-value">{loginSecurityConfig.maxAttemptsBeforeLock}</div>
+                    <div className="config-label">Max attempts before lock</div>
+                  </div>
+                </div>
+                <div className="config-card danger">
+                  <FaClock className="config-icon" />
+                  <div>
+                    <div className="config-value">{loginSecurityConfig.lockDurationMinutes}</div>
+                    <div className="config-label">Lock duration (minutes)</div>
+                  </div>
+                </div>
+                <div className="config-card info">
+                  <FaMobileAlt className="config-icon" />
+                  <div>
+                    <div className="config-value">{loginAttempts.filter(a => a.whatsappAlertSent).length}</div>
+                    <div className="config-label">WhatsApp alerts sent</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attempts list */}
+              <div className="attempts-list-wrap">
+                <h3><FaUserShield /> Failed Login Attempts History</h3>
+
+                {loginAttempts.length === 0 ? (
+                  <div className="empty-state">
+                    <FaShieldAlt />
+                    <p>No failed login attempts recorded yet</p>
+                    <span>All quiet on the security front 🛡️</span>
+                  </div>
+                ) : (
+                  <div className="attempts-table-wrap">
+                    <table className="admin-table attempts-table">
+                      <thead>
+                        <tr>
+                          <th>Username</th>
+                          <th>IP</th>
+                          <th>Device</th>
+                          <th>Failed</th>
+                          <th>Status</th>
+                          <th>WhatsApp</th>
+                          <th>Last Attempt</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loginAttempts.map((a) => {
+                          const isLocked = a.locked;
+                          const minsLeft = a.lockedUntil ? Math.max(0, Math.ceil((new Date(a.lockedUntil) - Date.now()) / 60000)) : 0;
+                          return (
+                            <tr key={a.attemptKey} className={isLocked ? 'row-locked' : ''}>
+                              <td><strong>{a.username}</strong></td>
+                              <td><code>{a.ip}</code></td>
+                              <td><small>{a.userAgent}</small></td>
+                              <td>
+                                <span className={`attempts-badge ${a.failedAttempts >= 5 ? 'danger' : a.failedAttempts >= 3 ? 'warning' : ''}`}>
+                                  {a.failedAttempts}/5
+                                </span>
+                              </td>
+                              <td>
+                                {isLocked ? (
+                                  <span className="status-pill locked">
+                                    <FaLock /> Locked ({minsLeft}m)
+                                  </span>
+                                ) : a.failedAttempts > 0 ? (
+                                  <span className="status-pill warned">
+                                    <FaExclamationTriangle /> Watching
+                                  </span>
+                                ) : (
+                                  <span className="status-pill ok">Cleared</span>
+                                )}
+                              </td>
+                              <td>
+                                {a.whatsappAlertSent ? (
+                                  <span className="whatsapp-sent"><FaMobileAlt /> Sent</span>
+                                ) : (
+                                  <span className="muted">—</span>
+                                )}
+                              </td>
+                              <td><small>{a.lastAttemptAt ? new Date(a.lastAttemptAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</small></td>
+                              <td>
+                                {(isLocked || a.failedAttempts > 0) && (
+                                  <button
+                                    className="btn-sm btn-info"
+                                    onClick={() => handleClearLock(a.attemptKey)}
+                                    title="Clear lock + reset counter"
+                                  >
+                                    <FaRedo /> Clear
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="security-info-note">
+                  <FaShieldAlt />
+                  <div>
+                    <strong>How it works:</strong>
+                    <ul>
+                      <li>After <strong>3 failed attempts</strong> from same IP+username → warning + soft WhatsApp ping</li>
+                      <li>After <strong>5 failed attempts</strong> → account locked for 30 minutes + full WhatsApp alert</li>
+                      <li>Successful login resets the counter instantly</li>
+                      <li>Locks auto-expire — no manual action needed</li>
+                      <li>Use "Clear" button only if you're sure the activity was legitimate</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </main>

@@ -208,6 +208,32 @@ const sessionSchema = new mongoose.Schema({
 });
 sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+// ============================================================
+// 🛡️ LOGIN ATTEMPT SCHEMA — Brute-force protection
+// Tracks failed admin login attempts per (username + IP).
+// Persists in MongoDB so Render sleep/wake doesn't lose state.
+// ============================================================
+const loginAttemptSchema = new mongoose.Schema({
+  attemptKey: { type: String, unique: true, index: true }, // `${username}__${ip}`
+  username: { type: String, default: 'unknown' },
+  ip: { type: String, default: 'unknown' },
+  userAgent: { type: String, default: 'unknown' },
+  failedAttempts: { type: Number, default: 0 },
+  lockedUntil: { type: Date, default: null },
+  whatsappAlertSent: { type: Boolean, default: false },
+  lastAlertAt: { type: Date, default: null },
+  lastAttemptAt: { type: Date, default: Date.now },
+  lastSuccessAt: { type: Date, default: null },
+  history: [{
+    timestamp: { type: Date, default: Date.now },
+    ip: String,
+    userAgent: String,
+    success: { type: Boolean, default: false },
+  }],
+});
+// Auto-prune old records (90 days) to keep collection small
+loginAttemptSchema.index({ lastAttemptAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
+
 const User = mongoose.model('User', userSchema);
 const Product = mongoose.model('Product', productSchema);
 const Order = mongoose.model('Order', orderSchema);
@@ -216,6 +242,11 @@ const Review = mongoose.model('Review', reviewSchema);
 const Setting = mongoose.model('Setting', settingsSchema);
 const ReturnRequest = mongoose.model('ReturnRequest', returnRequestSchema);
 const Session = mongoose.model('Session', sessionSchema);
+const LoginAttempt = mongoose.model('LoginAttempt', loginAttemptSchema);
+
+// 🛡️ Wire the model into the login security service
+const loginSecurity = require('./utils/loginSecurity');
+loginSecurity.setLoginAttemptModel(LoginAttempt);
 
 // ============================================
 // JWT CONFIG — 🛡️ Changed from 7d → 24h for security
@@ -2624,7 +2655,27 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Username and password required' });
     }
 
+    // 🛡️ STEP 1: Check lock status BEFORE verifying credentials.
+    // Even if password is correct, locked accounts cannot login until cooldown.
+    const lockStatus = await loginSecurity.checkLockStatus(username, loginSecurity.getClientIp(req));
+    if (lockStatus.locked) {
+      const mins = lockStatus.lockMinutesRemaining || 0;
+      console.warn(`🚫 Admin login BLOCKED (locked) — ${username} from ${req.ip}, ${mins} min remaining`);
+      return res.status(429).json({
+        success: false,
+        error: `Account temporarily locked due to multiple failed attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.`,
+        locked: true,
+        lockExpiresAt: lockStatus.lockExpiresAt,
+        lockMinutesRemaining: mins,
+        whatsappAlertSent: lockStatus.whatsappAlertSent,
+      });
+    }
+
+    // 🛡️ STEP 2: Verify credentials
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      // Reset attempt counter on success
+      await loginSecurity.recordSuccessfulLogin(req, username);
+
       const token = jwt.sign(
         { username, role: 'admin', timestamp: Date.now() },
         JWT_SECRET,
@@ -2638,12 +2689,98 @@ app.post('/api/admin/login', async (req, res) => {
         user: { username, role: 'admin', name: 'PRADH Admin' },
       });
     } else {
-      console.log(`❌ Failed admin login attempt: ${username} from ${req.ip}`);
-      return res.status(401).json({ success: false, error: 'Invalid username or password' });
+      // 🛡️ STEP 3: Record failed attempt — handles counter, locking, WhatsApp alerts
+      const failInfo = await loginSecurity.recordFailedAttempt(req, username);
+      console.log(`❌ Failed admin login attempt #${failInfo.attemptsUsed}/5 — ${username} from ${failInfo.ip} (${failInfo.userAgent})`);
+
+      // Build a contextual error message
+      let errorMsg = 'Invalid username or password';
+      if (failInfo.locked) {
+        errorMsg = `Too many failed attempts. Account locked for ${failInfo.lockMinutesRemaining} minutes. WhatsApp alert sent to admin.`;
+      } else if (failInfo.warningLevel === 'warning') {
+        errorMsg = `Invalid credentials. ⚠️ Warning: ${failInfo.attemptsRemaining} attempt${failInfo.attemptsRemaining !== 1 ? 's' : ''} remaining before account lock.`;
+      } else if (failInfo.attemptsUsed >= 1) {
+        errorMsg = `Invalid credentials. ${failInfo.attemptsRemaining} attempt${failInfo.attemptsRemaining !== 1 ? 's' : ''} remaining.`;
+      }
+
+      const statusCode = failInfo.locked ? 429 : 401;
+      return res.status(statusCode).json({
+        success: false,
+        error: errorMsg,
+        attemptsUsed: failInfo.attemptsUsed,
+        attemptsRemaining: failInfo.attemptsRemaining,
+        locked: failInfo.locked,
+        lockExpiresAt: failInfo.lockExpiresAt,
+        lockMinutesRemaining: failInfo.lockMinutesRemaining || 0,
+        warningLevel: failInfo.warningLevel,
+        whatsappAlertSent: failInfo.whatsappSent,
+      });
     }
   } catch (error) {
     console.error('Admin login error:', error);
     return res.status(500).json({ success: false, error: 'Server error. Please try again.' });
+  }
+});
+
+// ============================================================
+// 🛡️ ADMIN LOGIN SECURITY ENDPOINTS
+// ============================================================
+
+// GET /api/admin/login-security/status — check current lock status (no auth required, used by login page)
+app.get('/api/admin/login-security/status', async (req, res) => {
+  try {
+    const username = req.query.username;
+    if (!username) {
+      return res.json({ success: true, locked: false, attemptsRemaining: 5, attemptsUsed: 0 });
+    }
+    const status = await loginSecurity.checkLockStatus(username, loginSecurity.getClientIp(req));
+    res.json({ success: true, ...status });
+  } catch (err) {
+    console.error('Login security status error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/login-security/attempts — admin dashboard view of all attempt records
+app.get('/api/admin/login-security/attempts', verifyAdminToken, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const records = await loginSecurity.getAttemptHistory(limit);
+    res.json({
+      success: true,
+      records: records.map(r => ({
+        attemptKey: r.attemptKey,
+        username: r.username,
+        ip: r.ip,
+        userAgent: r.userAgent,
+        failedAttempts: r.failedAttempts,
+        locked: !!(r.lockedUntil && r.lockedUntil > new Date()),
+        lockedUntil: r.lockedUntil,
+        whatsappAlertSent: r.whatsappAlertSent,
+        lastAttemptAt: r.lastAttemptAt,
+        lastSuccessAt: r.lastSuccessAt,
+        recentAttempts: (r.history || []).slice(-5),
+      })),
+      config: {
+        maxAttemptsBeforeWarning: loginSecurity.MAX_ATTEMPTS_BEFORE_WARNING,
+        maxAttemptsBeforeLock: loginSecurity.MAX_ATTEMPTS_BEFORE_LOCK,
+        lockDurationMinutes: Math.round(loginSecurity.LOCK_DURATION_MS / 60000),
+      },
+    });
+  } catch (err) {
+    console.error('Get login attempts error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/admin/login-security/attempts/:attemptKey — manually clear a lock (admin only)
+app.delete('/api/admin/login-security/attempts/:attemptKey', verifyAdminToken, async (req, res) => {
+  try {
+    const result = await loginSecurity.clearLock(req.params.attemptKey);
+    res.json({ success: result.success, modified: result.modified });
+  } catch (err) {
+    console.error('Clear lock error:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

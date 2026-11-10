@@ -2,6 +2,13 @@
 // 🎨 FESTIVAL PROVIDER — Admin-controlled theme system
 // NO user manual override (removed). Only admin controls theme.
 // Priority: Admin theme → Auto-detected festival → Default
+//
+// 🛡️ ANTI-FLASH FIX:
+// On refresh, we used to briefly show detectedFestival (e.g. Diwali)
+// before admin's 'default' override loaded from backend.
+// Now we cache adminTheme in localStorage so it's available
+// synchronously on next visit. While loading (first visit only),
+// we force 'default' to avoid festival flash.
 // ============================================================
 import { useState, useEffect, createContext, useContext } from 'react';
 import { apiFetch } from '../services/api';
@@ -9,6 +16,25 @@ import { FESTIVAL_THEMES, ALL_THEME_KEYS } from './festivalConfig';
 import { detectActiveFestival } from './festivalDetector';
 
 const FestivalContext = createContext(null);
+
+const ADMIN_THEME_CACHE_KEY = 'pradh_admin_theme_cache';
+
+// Safe localStorage read with try/catch (for private mode etc.)
+function readCachedTheme() {
+  try {
+    return localStorage.getItem(ADMIN_THEME_CACHE_KEY); // 'auto' | 'default' | 'diwali' | null
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedTheme(value) {
+  try {
+    localStorage.setItem(ADMIN_THEME_CACHE_KEY, value);
+  } catch {
+    /* ignore */
+  }
+}
 
 export const useFestival = () => {
   const ctx = useContext(FestivalContext);
@@ -26,46 +52,65 @@ export const useFestival = () => {
 };
 
 export const FestivalProvider = ({ children }) => {
+  // 🛡️ Initial state from cache (instant, no flash)
+  // adminSetting can be: 'auto' | 'default' | 'diwali' | ... | null (no cache yet)
+  const [adminSetting, setAdminSetting] = useState(readCachedTheme);
+  // themeReady = true if we have a cached value; otherwise false until fetch completes
+  const [themeReady, setThemeReady] = useState(() => readCachedTheme() !== null);
   const [detectedFestival, setDetectedFestival] = useState(null);
-  const [adminTheme, setAdminTheme] = useState(null);
   const [showIntro, setShowIntro] = useState(false);
   const [introFestival, setIntroFestival] = useState(null);
 
   // On mount: detect festival + fetch admin's global theme
   useEffect(() => {
-    // Clean up old localStorage values from removed user selector
+    // Clean up OLD localStorage values from removed user selector
+    // (Do NOT remove ADMIN_THEME_CACHE_KEY — that's our new cache)
     localStorage.removeItem('pradh_theme_mode');
     localStorage.removeItem('pradh_manual_theme');
     localStorage.removeItem('pradh_intro_shown');
 
-    // Detect festival based on calendar
+    // Detect festival based on calendar (synchronous, instant)
     const detected = detectActiveFestival();
     setDetectedFestival(detected);
 
-    // Fetch admin's global theme setting
+    // Fetch admin's global theme setting (async)
     const fetchAdminTheme = async () => {
       try {
         const res = await apiFetch('/api/theme-settings');
         const data = await res.json();
         if (data.success && data.activeTheme) {
-          if (data.activeTheme === 'auto') {
-            // 'auto' → clear admin override, let festival calendar decide
-            setAdminTheme(null);
-          } else {
-            // 'default' OR specific festival → set explicitly (overrides auto-detection)
-            setAdminTheme(data.activeTheme);
-          }
+          // data.activeTheme can be: 'auto' | 'default' | specific festival
+          setAdminSetting(data.activeTheme);
+          writeCachedTheme(data.activeTheme);
+        } else {
+          // No admin setting stored — default to 'auto' (use festival calendar)
+          setAdminSetting('auto');
+          writeCachedTheme('auto');
         }
       } catch {
-        // Backend not available — use auto detection only
+        // Backend unavailable — fallback to 'auto' (let detection decide)
+        setAdminSetting('auto');
+        writeCachedTheme('auto');
+      } finally {
+        setThemeReady(true);
       }
     };
     fetchAdminTheme();
   }, []);
 
-  // Determine active theme:
-  // Priority: Admin's specific theme → Auto-detected festival → Default
-  const activeTheme = adminTheme || detectedFestival || 'default';
+  // 🛡️ Compute active theme WITHOUT flash:
+  // - While not ready (first visit, no cache): FORCE 'default'
+  //   (never show detectedFestival before admin's preference is known)
+  // - After ready:
+  //     adminSetting='auto' → use detectedFestival (admin wants calendar detection)
+  //     adminSetting=specific theme → use that theme (admin override)
+  //     adminSetting=null (shouldn't happen post-ready) → fall back to detected
+  const activeTheme = !themeReady
+    ? 'default'
+    : (adminSetting === 'auto' || !adminSetting)
+      ? (detectedFestival || 'default')
+      : adminSetting;
+
   const themeInfo = FESTIVAL_THEMES[activeTheme] || FESTIVAL_THEMES.default;
 
   // Apply theme class to body
@@ -95,20 +140,27 @@ export const FestivalProvider = ({ children }) => {
     }
   }, [activeTheme]);
 
-  // Show intro on EVERY page load if a festival theme is active
+  // Show intro ONLY ONCE per session per festival (not every refresh)
   useEffect(() => {
-    if (activeTheme === 'default') return; // No intro for default theme
+    if (activeTheme === 'default') return;
+    // While still loading on first visit, don't trigger intro
+    // (intro will trigger after themeReady becomes true and activeTheme updates)
+    if (!themeReady) return;
 
     const festivalKey = activeTheme;
     if (FESTIVAL_THEMES[festivalKey] && FESTIVAL_THEMES[festivalKey].isFestival) {
-      // Delay slightly to let page render first
+      // Check sessionStorage — intro shows only once per browser session
+      const INTRO_KEY = 'pradh_intro_shown_' + festivalKey;
+      if (sessionStorage.getItem(INTRO_KEY)) return; // Already shown this session
+
       const timer = setTimeout(() => {
         setIntroFestival(festivalKey);
         setShowIntro(true);
+        sessionStorage.setItem(INTRO_KEY, 'true'); // Mark as shown
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [activeTheme]);
+  }, [activeTheme, themeReady]);
 
   const dismissIntro = () => {
     setShowIntro(false);
@@ -121,6 +173,8 @@ export const FestivalProvider = ({ children }) => {
         activeTheme,
         themeInfo,
         detectedFestival,
+        adminSetting,
+        themeReady,
         showIntro,
         introFestival,
         dismissIntro,
