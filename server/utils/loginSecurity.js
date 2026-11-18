@@ -2,27 +2,37 @@
  * 🛡️ Login Security Service
  * Tracks failed admin login attempts in MongoDB (persists across Render sleeps).
  *
- * Flow:
- *   Attempts 1–3  → "X attempts left" warnings (2 remaining)
- *   Attempts 4–5  → "Final warning, last X attempts"
- *   Attempt 5     → Account LOCKED for 30 min + WhatsApp alert sent
- *   After lock    → Must wait for cooldown; further attempts are rejected
+ * Flow (defaults, admin-configurable via /api/admin/login-security/config):
+ *   Attempts 1–(warningThreshold-1)  → normal warnings
+ *   Attempts warningThreshold–(maxAttempts-1) → "X attempts left" warning
+ *   Attempt maxAttempts  → Account LOCKED + WhatsApp alert
+ *   After lock  → Must wait for cooldown; further attempts rejected
  *
- * Public API:
- *   checkLockStatus()        → before login: see if locked
- *   recordFailedAttempt()    → after a bad password
- *   recordSuccessfulLogin()  → reset counter on success
- *   getAttemptHistory()      → admin dashboard view
+ * Config is read from DB (Setting collection) with in-memory cache.
+ * Falls back to defaults if DB unavailable.
  */
 
 const whatsappService = require('./whatsappService');
 
-// Config
-const MAX_ATTEMPTS_BEFORE_WARNING = 3;  // After 3 fails, warn "2 attempts left"
-const MAX_ATTEMPTS_BEFORE_LOCK = 5;     // After 5 fails, lock account
-const LOCK_DURATION_MS = 30 * 60 * 1000; // 30 minutes
-const ATTEMPT_WINDOW_MS = 60 * 60 * 1000; // Track attempts within last 1 hour
-const ALERT_COOLDOWN_MS = 30 * 60 * 1000; // Don't spam WhatsApp — 1 alert per 30 min
+// Default config (used if DB has no setting, or DB unavailable)
+const DEFAULT_CONFIG = {
+  maxAttempts: 5,             // Total attempts allowed before lock
+  warningThreshold: 3,        // When to start showing "warning" level
+  lockDurationMinutes: 30,    // How long account stays locked
+  whatsappSoftAlert: true,    // Send WhatsApp ping on warning threshold
+  whatsappHardAlert: true,    // Send WhatsApp alert on lock
+};
+
+// Config cache (refreshed every 60 seconds or on explicit refresh)
+let cachedConfig = null;
+let cachedAt = 0;
+const CONFIG_CACHE_TTL_MS = 60 * 1000;
+
+// Setting model — set from server.js via setSettingModel()
+let SettingModel = null;
+function setSettingModel(model) {
+  SettingModel = model;
+}
 
 // Will be initialised from server.js (mongoose model)
 let LoginAttempt;
@@ -33,8 +43,6 @@ function setLoginAttemptModel(model) {
 
 /**
  * Get a stable key for the attempted login (username + normalised IP).
- * Locks per attacker (IP+username), not globally — so legitimate admin from
- * another device can still log in.
  */
 function buildAttemptKey(username, ip) {
   const cleanUser = (username || 'unknown').toLowerCase().trim();
@@ -57,7 +65,6 @@ function getClientIp(req) {
 function getUserAgentSummary(req) {
   const ua = req.headers['user-agent'] || '';
   if (!ua) return 'unknown';
-  // Pull browser + OS in compact form
   const browser = /Edg\//.test(ua) ? 'Edge'
     : /Chrome\//.test(ua) ? 'Chrome'
     : /Firefox\//.test(ua) ? 'Firefox'
@@ -73,20 +80,104 @@ function getUserAgentSummary(req) {
 }
 
 /**
+ * Read config from DB (Setting collection) with in-memory cache.
+ * Falls back to defaults if DB unavailable.
+ */
+async function getConfig() {
+  // Return cache if fresh
+  if (cachedConfig && (Date.now() - cachedAt) < CONFIG_CACHE_TTL_MS) {
+    return cachedConfig;
+  }
+
+  if (!SettingModel) {
+    cachedConfig = DEFAULT_CONFIG;
+    cachedAt = Date.now();
+    return cachedConfig;
+  }
+
+  try {
+    const doc = await SettingModel.findOne({ key: 'global' }).lean();
+    if (doc && doc.loginSecurityConfig) {
+      // Merge with defaults to ensure all fields exist
+      cachedConfig = {
+        maxAttempts: Number(doc.loginSecurityConfig.maxAttempts) || DEFAULT_CONFIG.maxAttempts,
+        warningThreshold: Number(doc.loginSecurityConfig.warningThreshold) || DEFAULT_CONFIG.warningThreshold,
+        lockDurationMinutes: Number(doc.loginSecurityConfig.lockDurationMinutes) || DEFAULT_CONFIG.lockDurationMinutes,
+        whatsappSoftAlert: doc.loginSecurityConfig.whatsappSoftAlert !== false,
+        whatsappHardAlert: doc.loginSecurityConfig.whatsappHardAlert !== false,
+      };
+    } else {
+      cachedConfig = DEFAULT_CONFIG;
+    }
+  } catch (err) {
+    console.error('Login security config read error:', err.message);
+    cachedConfig = DEFAULT_CONFIG;
+  }
+
+  cachedAt = Date.now();
+  return cachedConfig;
+}
+
+/**
+ * Force refresh config cache (called after admin updates config).
+ */
+function refreshConfigCache() {
+  cachedConfig = null;
+  cachedAt = 0;
+}
+
+/**
+ * Validate a config object (admin input). Returns cleaned config or throws.
+ */
+function validateConfig(input) {
+  const maxAttempts = parseInt(input.maxAttempts, 10);
+  const warningThreshold = parseInt(input.warningThreshold, 10);
+  const lockDurationMinutes = parseInt(input.lockDurationMinutes, 10);
+
+  if (!Number.isFinite(maxAttempts) || maxAttempts < 3 || maxAttempts > 20) {
+    throw new Error('Max attempts must be between 3 and 20');
+  }
+  if (!Number.isFinite(warningThreshold) || warningThreshold < 1 || warningThreshold >= maxAttempts) {
+    throw new Error(`Warning threshold must be between 1 and ${maxAttempts - 1}`);
+  }
+  if (!Number.isFinite(lockDurationMinutes) || lockDurationMinutes < 1 || lockDurationMinutes > 1440) {
+    throw new Error('Lock duration must be between 1 and 1440 minutes (24 hours)');
+  }
+
+  return {
+    maxAttempts,
+    warningThreshold,
+    lockDurationMinutes,
+    whatsappSoftAlert: !!input.whatsappSoftAlert,
+    whatsappHardAlert: !!input.whatsappHardAlert,
+  };
+}
+
+// Convenience constants for backward compatibility with old code that imports these
+// (Note: these are DEFAULTS — actual values come from getConfig() per-request)
+const MAX_ATTEMPTS_BEFORE_WARNING = DEFAULT_CONFIG.warningThreshold;
+const MAX_ATTEMPTS_BEFORE_LOCK = DEFAULT_CONFIG.maxAttempts;
+const LOCK_DURATION_MS = DEFAULT_CONFIG.lockDurationMinutes * 60 * 1000;
+
+/**
  * Check current lock status for an attempt key.
  * Returns: { locked, lockExpiresAt, attemptsRemaining, attemptsUsed, whatsappAlertSent }
  */
 async function checkLockStatus(username, ip) {
+  const config = await getConfig();
+
   if (!LoginAttempt) {
-    return { locked: false, attemptsRemaining: MAX_ATTEMPTS_BEFORE_LOCK, attemptsUsed: 0 };
+    return { locked: false, attemptsRemaining: config.maxAttempts, attemptsUsed: 0 };
   }
   const key = buildAttemptKey(username, ip);
   const now = new Date();
 
   const record = await LoginAttempt.findOne({ attemptKey: key });
   if (!record) {
-    return { locked: false, attemptsRemaining: MAX_ATTEMPTS_BEFORE_LOCK, attemptsUsed: 0 };
+    return { locked: false, attemptsRemaining: config.maxAttempts, attemptsUsed: 0 };
   }
+
+  const lockMs = config.lockDurationMinutes * 60 * 1000;
 
   // Check lock expiry
   if (record.lockedUntil && record.lockedUntil > now) {
@@ -106,11 +197,11 @@ async function checkLockStatus(username, ip) {
     record.lockedUntil = null;
     record.whatsappAlertSent = false;
     await record.save();
-    return { locked: false, attemptsRemaining: MAX_ATTEMPTS_BEFORE_LOCK, attemptsUsed: 0 };
+    return { locked: false, attemptsRemaining: config.maxAttempts, attemptsUsed: 0 };
   }
 
   // Not locked — show remaining
-  const remaining = Math.max(0, MAX_ATTEMPTS_BEFORE_LOCK - record.failedAttempts);
+  const remaining = Math.max(0, config.maxAttempts - record.failedAttempts);
   return {
     locked: false,
     attemptsRemaining: remaining,
@@ -126,16 +217,27 @@ async function checkLockStatus(username, ip) {
  *  - WhatsApp alert dispatch (with cooldown to avoid spam)
  *
  * Returns: { attemptsUsed, attemptsRemaining, locked, lockExpiresAt, whatsappSent, warningLevel }
- *   warningLevel: 'normal' | 'warning' | 'final' | 'locked'
+ *   warningLevel: 'normal' | 'warning' | 'locked'
  */
 async function recordFailedAttempt(req, username) {
+  const config = await getConfig();
   const ip = getClientIp(req);
   const userAgent = getUserAgentSummary(req);
   const key = buildAttemptKey(username, ip);
   const now = new Date();
+  const lockMs = config.lockDurationMinutes * 60 * 1000;
+  const ALERT_COOLDOWN_MS = Math.max(5 * 60 * 1000, lockMs); // Don't spam WhatsApp
 
   if (!LoginAttempt) {
-    return { attemptsUsed: 1, attemptsRemaining: 4, locked: false, whatsappSent: false, warningLevel: 'normal' };
+    return {
+      attemptsUsed: 1,
+      attemptsRemaining: config.maxAttempts - 1,
+      locked: false,
+      whatsappSent: false,
+      warningLevel: 'normal',
+      ip,
+      userAgent,
+    };
   }
 
   let record = await LoginAttempt.findOne({ attemptKey: key });
@@ -166,33 +268,31 @@ async function recordFailedAttempt(req, username) {
   if (record.history.length > 20) record.history = record.history.slice(-20);
 
   const attemptsUsed = record.failedAttempts;
-  const attemptsRemaining = Math.max(0, MAX_ATTEMPTS_BEFORE_LOCK - attemptsUsed);
+  const attemptsRemaining = Math.max(0, config.maxAttempts - attemptsUsed);
 
   let warningLevel = 'normal';
-  if (attemptsUsed >= 1 && attemptsUsed < MAX_ATTEMPTS_BEFORE_WARNING) {
-    warningLevel = 'normal';
-  } else if (attemptsUsed >= MAX_ATTEMPTS_BEFORE_WARNING && attemptsUsed < MAX_ATTEMPTS_BEFORE_LOCK) {
-    warningLevel = 'warning';
-  } else if (attemptsUsed >= MAX_ATTEMPTS_BEFORE_LOCK) {
+  if (attemptsUsed >= config.maxAttempts) {
     warningLevel = 'locked';
+  } else if (attemptsUsed >= config.warningThreshold) {
+    warningLevel = 'warning';
   }
 
   let whatsappSent = false;
   let lockExpiresAt = null;
 
-  if (attemptsUsed >= MAX_ATTEMPTS_BEFORE_LOCK) {
-    record.lockedUntil = new Date(now.getTime() + LOCK_DURATION_MS);
+  if (warningLevel === 'locked') {
+    record.lockedUntil = new Date(now.getTime() + lockMs);
     lockExpiresAt = record.lockedUntil;
 
     // Send WhatsApp alert (only once per cooldown window)
     const canSendAlert = !record.lastAlertAt || (now - record.lastAlertAt) > ALERT_COOLDOWN_MS;
-    if (canSendAlert && !record.whatsappAlertSent) {
+    if (canSendAlert && !record.whatsappAlertSent && config.whatsappHardAlert) {
       const message = whatsappService.buildSecurityAlertMessage({
-        event: '🚨 Admin login LOCKED — 5 failed attempts detected',
+        event: '🚨 Admin login LOCKED — ' + attemptsUsed + ' failed attempts detected',
         attempts: attemptsUsed,
         ip,
         userAgent,
-        lockMinutes: Math.round(LOCK_DURATION_MS / 60000),
+        lockMinutes: config.lockDurationMinutes,
         timestamp: now,
       });
       try {
@@ -206,12 +306,12 @@ async function recordFailedAttempt(req, username) {
         console.error('WhatsApp alert error:', err.message);
       }
     }
-  } else if (attemptsUsed === MAX_ATTEMPTS_BEFORE_WARNING) {
-    // Soft warning at 3 attempts — also send a low-priority WhatsApp ping
+  } else if (attemptsUsed === config.warningThreshold && config.whatsappSoftAlert) {
+    // Soft warning at threshold — also send a low-priority WhatsApp ping
     const canSendSoftAlert = !record.lastAlertAt || (now - record.lastAlertAt) > ALERT_COOLDOWN_MS;
     if (canSendSoftAlert) {
       const message = whatsappService.buildSecurityAlertMessage({
-        event: '⚠️ Suspicious admin login activity — 3 failed attempts',
+        event: '⚠️ Suspicious admin login activity — ' + attemptsUsed + ' failed attempts',
         attempts: attemptsUsed,
         ip,
         userAgent,
@@ -242,6 +342,7 @@ async function recordFailedAttempt(req, username) {
     warningLevel,
     ip,
     userAgent,
+    config, // include config so caller can reference thresholds if needed
   };
 }
 
@@ -290,6 +391,10 @@ async function clearLock(attemptKey) {
 
 module.exports = {
   setLoginAttemptModel,
+  setSettingModel,
+  getConfig,
+  validateConfig,
+  refreshConfigCache,
   checkLockStatus,
   recordFailedAttempt,
   recordSuccessfulLogin,
@@ -297,7 +402,9 @@ module.exports = {
   clearLock,
   getClientIp,
   getUserAgentSummary,
+  // Expose defaults for backward compatibility
   MAX_ATTEMPTS_BEFORE_WARNING,
   MAX_ATTEMPTS_BEFORE_LOCK,
   LOCK_DURATION_MS,
+  DEFAULT_CONFIG,
 };

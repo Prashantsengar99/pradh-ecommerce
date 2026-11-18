@@ -173,6 +173,24 @@ const settingsSchema = new mongoose.Schema({
   wheelDiscountPercent: { type: Number, default: 20 },
   wheelLabel: { type: String, default: '20% OFF' },
   wheelEnabled: { type: Boolean, default: true },
+  // 🎡 MULTI-TIER WHEEL PRIZES — admin can configure multiple prizes
+  // Each prize: { label, code, discount, weight, color, textColor }
+  // weight = probability (higher = more likely to land)
+  // If empty/missing → frontend uses legacy single-prize mode
+  wheelPrizes: {
+    type: [{
+      label: { type: String, required: true },
+      code: { type: String, required: true },
+      discount: { type: Number, required: true, min: 0, max: 100 },
+      weight: { type: Number, default: 1, min: 1 },
+      color: { type: String, default: '#C49A45' },
+      textColor: { type: String, default: '#FFFFFF' },
+      isGrandPrize: { type: Boolean, default: false },
+    }],
+    default: [],
+  },
+  wheelCountdownHours: { type: Number, default: 24 }, // Countdown timer duration
+  wheelRequireEmail: { type: Boolean, default: true }, // Require email to reveal code
   announcementEnabled: { type: Boolean, default: true },
   announcementText: { type: String, default: 'Use code PRADH20 for 20% OFF on your first order — Limited time only' },
   announcementCoupon: { type: String, default: 'PRADH20' },
@@ -182,6 +200,14 @@ const settingsSchema = new mongoose.Schema({
   ctaDesc: { type: String, default: 'Use this coupon code and get flat 20% off on your first order.' },
   // 🎨 FESTIVAL THEME — admin can switch entire website theme
   activeTheme: { type: String, default: 'default' }, // default | diwali | holi | rakshabandhan | independence | christmas
+  // 🛡️ LOGIN SECURITY CONFIG — admin-editable brute-force protection settings
+  loginSecurityConfig: {
+    maxAttempts: { type: Number, default: 5 },
+    warningThreshold: { type: Number, default: 3 },
+    lockDurationMinutes: { type: Number, default: 30 },
+    whatsappSoftAlert: { type: Boolean, default: true },
+    whatsappHardAlert: { type: Boolean, default: true },
+  },
   lastUpdated: { type: Date, default: Date.now },
 });
 
@@ -247,6 +273,7 @@ const LoginAttempt = mongoose.model('LoginAttempt', loginAttemptSchema);
 // 🛡️ Wire the model into the login security service
 const loginSecurity = require('./utils/loginSecurity');
 loginSecurity.setLoginAttemptModel(LoginAttempt);
+loginSecurity.setSettingModel(Setting);
 
 // ============================================
 // JWT CONFIG — 🛡️ Changed from 7d → 24h for security
@@ -2784,6 +2811,44 @@ app.delete('/api/admin/login-security/attempts/:attemptKey', verifyAdminToken, a
   }
 });
 
+// GET /api/admin/login-security/config — get current security config
+app.get('/api/admin/login-security/config', verifyAdminToken, async (req, res) => {
+  try {
+    const config = await loginSecurity.getConfig();
+    res.json({ success: true, config });
+  } catch (err) {
+    console.error('Get security config error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/admin/login-security/config — update security config
+app.put('/api/admin/login-security/config', verifyAdminToken, async (req, res) => {
+  try {
+    const input = req.body || {};
+    // Validate input
+    const cleaned = loginSecurity.validateConfig(input);
+
+    // Save to Setting collection
+    let setting = await Setting.findOne({ key: 'global' });
+    if (!setting) {
+      setting = new Setting({ key: 'global' });
+    }
+    setting.loginSecurityConfig = cleaned;
+    setting.lastUpdated = new Date();
+    await setting.save();
+
+    // Refresh in-memory cache so new value takes effect immediately
+    loginSecurity.refreshConfigCache();
+
+    console.log('🛡️ Login security config updated by admin:', cleaned);
+    res.json({ success: true, config: cleaned, message: 'Security settings updated successfully' });
+  } catch (err) {
+    console.error('Update security config error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 function verifyAdminToken(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1] || req.headers['x-auth-token'];
   if (!token) {
@@ -2954,12 +3019,32 @@ app.get('/api/wheel-settings', async (req, res) => {
         wheelEnabled: true,
       });
     }
+
+    // 🎡 Build response with multi-tier prizes (if configured)
+    let prizes = [];
+    if (setting.wheelPrizes && setting.wheelPrizes.length > 0) {
+      prizes = setting.wheelPrizes.map(p => ({
+        label: p.label,
+        code: p.code,
+        discount: p.discount,
+        weight: p.weight || 1,
+        color: p.color || '#C49A45',
+        textColor: p.textColor || '#FFFFFF',
+        isGrandPrize: !!p.isGrandPrize,
+      }));
+    }
+
     res.json({
       success: true,
+      // Legacy single-prize fields (for backward compat)
       couponCode: setting.wheelCouponCode || 'PRADH20',
       discountPercent: setting.wheelDiscountPercent || 20,
       label: setting.wheelLabel || '20% OFF',
       enabled: setting.wheelEnabled !== false,
+      // 🎡 New multi-tier fields
+      prizes,
+      countdownHours: setting.wheelCountdownHours || 24,
+      requireEmail: setting.wheelRequireEmail !== false,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -2968,14 +3053,40 @@ app.get('/api/wheel-settings', async (req, res) => {
 
 app.put('/api/wheel-settings', verifyAdminToken, async (req, res) => {
   try {
-    const { couponCode, discountPercent, label, enabled } = req.body;
+    const {
+      couponCode, discountPercent, label, enabled,
+      prizes, countdownHours, requireEmail,
+    } = req.body;
     const update = { lastUpdated: new Date() };
+    // Legacy single-prize fields
     if (couponCode !== undefined) update.wheelCouponCode = couponCode.toUpperCase().trim();
     if (discountPercent !== undefined) update.wheelDiscountPercent = parseInt(discountPercent);
     if (label !== undefined) update.wheelLabel = label.trim();
     if (enabled !== undefined) update.wheelEnabled = enabled;
+    // 🎡 New multi-tier fields
+    if (countdownHours !== undefined) update.wheelCountdownHours = Math.max(1, Math.min(168, parseInt(countdownHours)));
+    if (requireEmail !== undefined) update.wheelRequireEmail = !!requireEmail;
+    if (prizes !== undefined) {
+      // Validate prizes array
+      if (!Array.isArray(prizes)) {
+        return res.status(400).json({ success: false, error: 'Prizes must be an array' });
+      }
+      if (prizes.length < 2 || prizes.length > 12) {
+        return res.status(400).json({ success: false, error: 'Need between 2 and 12 prizes' });
+      }
+      // Sanitize each prize
+      update.wheelPrizes = prizes.map(p => ({
+        label: String(p.label || '').slice(0, 30),
+        code: String(p.code || '').toUpperCase().slice(0, 20),
+        discount: Math.max(0, Math.min(100, parseInt(p.discount, 10) || 0)),
+        weight: Math.max(1, Math.min(100, parseInt(p.weight, 10) || 1)),
+        color: String(p.color || '#C49A45').slice(0, 20),
+        textColor: String(p.textColor || '#FFFFFF').slice(0, 20),
+        isGrandPrize: !!p.isGrandPrize,
+      }));
+    }
     const setting = await Setting.findOneAndUpdate({ key: 'wheel' }, update, { new: true, upsert: true });
-    console.log('✅ Wheel settings updated:', setting.wheelCouponCode, setting.wheelDiscountPercent + '%', setting.wheelEnabled);
+    console.log('✅ Wheel settings updated:', setting.wheelCouponCode, setting.wheelDiscountPercent + '%', setting.wheelEnabled, '| Prizes:', (setting.wheelPrizes || []).length);
     res.json({
       success: true,
       message: 'Wheel settings updated!',
@@ -2984,10 +3095,132 @@ app.put('/api/wheel-settings', verifyAdminToken, async (req, res) => {
         discountPercent: setting.wheelDiscountPercent,
         label: setting.wheelLabel,
         enabled: setting.wheelEnabled,
+        prizes: setting.wheelPrizes || [],
+        countdownHours: setting.wheelCountdownHours || 24,
+        requireEmail: setting.wheelRequireEmail !== false,
       },
     });
   } catch (error) {
     console.error('Wheel settings error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================================
+// 🎡 WHEEL LEADS — Email capture for marketing
+// ============================================================
+const wheelLeadSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  phone: { type: String, default: '' },
+  prizeWon: { type: String, default: '' },          // label of prize
+  couponCode: { type: String, default: '' },         // code revealed
+  discountPercent: { type: Number, default: 0 },
+  spunAt: { type: Date, default: Date.now },
+  convertedToOrder: { type: Boolean, default: false },
+  source: { type: String, default: 'website_wheel' },
+});
+wheelLeadSchema.index({ email: 1 });
+wheelLeadSchema.index({ spunAt: 1 });
+
+const WheelLead = mongoose.model('WheelLead', wheelLeadSchema);
+
+// POST /api/wheel/email-capture — store lead + return coupon code
+app.post('/api/wheel/email-capture', async (req, res) => {
+  try {
+    const { email, phone, prizeWon, couponCode, discountPercent } = req.body;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'Valid email is required' });
+    }
+
+    // Upsert — if email already exists, update; else create
+    const lead = await WheelLead.findOneAndUpdate(
+      { email: email.toLowerCase().trim() },
+      {
+        $set: {
+          email: email.toLowerCase().trim(),
+          phone: phone ? String(phone).slice(0, 15) : '',
+          prizeWon: String(prizeWon || '').slice(0, 30),
+          couponCode: String(couponCode || '').toUpperCase().slice(0, 20),
+          discountPercent: parseInt(discountPercent, 10) || 0,
+          spunAt: new Date(),
+        },
+        $setOnInsert: {
+          convertedToOrder: false,
+          source: 'website_wheel',
+        },
+      },
+      { new: true, upsert: true }
+    );
+
+    console.log('🎡 Wheel lead captured:', lead.email, '| Prize:', lead.prizeWon);
+    res.json({
+      success: true,
+      message: 'Coupon unlocked! Check your email.',
+      leadId: lead._id,
+    });
+  } catch (error) {
+    console.error('Wheel email capture error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/admin/wheel-leads — admin views captured leads
+app.get('/api/admin/wheel-leads', verifyAdminToken, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 100;
+    const leads = await WheelLead.find({})
+      .sort({ spunAt: -1 })
+      .limit(limit)
+      .lean();
+    res.json({
+      success: true,
+      leads: leads.map(l => ({
+        id: l._id,
+        email: l.email,
+        phone: l.phone,
+        prizeWon: l.prizeWon,
+        couponCode: l.couponCode,
+        discountPercent: l.discountPercent,
+        spunAt: l.spunAt,
+        convertedToOrder: l.convertedToOrder,
+      })),
+      total: await WheelLead.countDocuments(),
+    });
+  } catch (error) {
+    console.error('Get wheel leads error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/admin/wheel-leads/export — simple stats
+app.get('/api/admin/wheel-leads/stats', verifyAdminToken, async (req, res) => {
+  try {
+    const totalLeads = await WheelLead.countDocuments();
+    const converted = await WheelLead.countDocuments({ convertedToOrder: true });
+    const last7Days = await WheelLead.countDocuments({
+      spunAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    });
+    const conversionRate = totalLeads > 0 ? ((converted / totalLeads) * 100).toFixed(1) : 0;
+
+    // Top prizes won
+    const topPrizes = await WheelLead.aggregate([
+      { $group: { _id: '$prizeWon', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 },
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        totalLeads,
+        converted,
+        conversionRate: parseFloat(conversionRate),
+        last7Days,
+        topPrizes: topPrizes.map(p => ({ prize: p._id, count: p.count })),
+      },
+    });
+  } catch (error) {
+    console.error('Wheel leads stats error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -55,10 +55,15 @@ const AdminPanel = () => {
   // 🛡️ Login Security State
   const [loginAttempts, setLoginAttempts] = useState([]);
   const [loginSecurityConfig, setLoginSecurityConfig] = useState({
-    maxAttemptsBeforeWarning: 3,
-    maxAttemptsBeforeLock: 5,
+    maxAttempts: 5,
+    warningThreshold: 3,
     lockDurationMinutes: 30,
+    whatsappSoftAlert: true,
+    whatsappHardAlert: true,
   });
+  const [securityConfigForm, setSecurityConfigForm] = useState(null);
+  const [securityConfigSaving, setSecurityConfigSaving] = useState(false);
+  const [showSecurityConfigModal, setShowSecurityConfigModal] = useState(false);
 
   // ✅ Announcement + CTA Settings State
   const [announcementSettings, setAnnouncementSettings] = useState({
@@ -216,17 +221,25 @@ const AdminPanel = () => {
     if (key === 'security') loadLoginAttempts();
   };
 
-  // 🛡️ LOGIN SECURITY — Load failed login attempts history
+  // 🛡️ LOGIN SECURITY — Load failed login attempts history + config
   const loadLoginAttempts = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await apiFetch('/api/admin/login-security/attempts?limit=50', {
-        headers: { Authorization: 'Bearer ' + token },
-      });
-      const data = await res.json();
-      if (data.success) {
-        setLoginAttempts(data.records || []);
-        setLoginSecurityConfig(data.config || loginSecurityConfig);
+      const [attemptsRes, configRes] = await Promise.all([
+        apiFetch('/api/admin/login-security/attempts?limit=50', {
+          headers: { Authorization: 'Bearer ' + token },
+        }),
+        apiFetch('/api/admin/login-security/config', {
+          headers: { Authorization: 'Bearer ' + token },
+        }),
+      ]);
+      const attemptsData = await attemptsRes.json();
+      const configData = await configRes.json();
+      if (attemptsData.success) {
+        setLoginAttempts(attemptsData.records || []);
+      }
+      if (configData.success && configData.config) {
+        setLoginSecurityConfig(configData.config);
       }
     } catch (err) {
       console.error('Load login attempts error:', err);
@@ -252,6 +265,44 @@ const AdminPanel = () => {
     } catch (err) {
       console.error('Clear lock error:', err);
       toast.error('Network error');
+    }
+  };
+
+  // 🛡️ Open config edit modal
+  const openSecurityConfigModal = () => {
+    setSecurityConfigForm({ ...loginSecurityConfig });
+    setShowSecurityConfigModal(true);
+  };
+
+  // 🛡️ Save updated config
+  const saveSecurityConfig = async (e) => {
+    e.preventDefault();
+    if (!securityConfigForm) return;
+    setSecurityConfigSaving(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await apiFetch('/api/admin/login-security/config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token,
+        },
+        body: JSON.stringify(securityConfigForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('✅ Security settings saved');
+        setLoginSecurityConfig(data.config);
+        setShowSecurityConfigModal(false);
+        setSecurityConfigForm(null);
+      } else {
+        toast.error(data.error || 'Failed to save settings');
+      }
+    } catch (err) {
+      console.error('Save security config error:', err);
+      toast.error('Network error');
+    } finally {
+      setSecurityConfigSaving(false);
     }
   };
 
@@ -2294,39 +2345,50 @@ const AdminPanel = () => {
               ============================================================ */}
           {section === 'security' && (
             <div className="security-section">
-              <div className="section-header">
-                <h2><FaShieldAlt /> Login Security Center</h2>
-                <button className="btn-refresh" onClick={loadLoginAttempts}>
-                  <FaSync /> Refresh
-                </button>
+              <div className="security-section-header">
+                <div className="security-section-title">
+                  <FaShieldAlt />
+                  <div>
+                    <h2>Login Security Center</h2>
+                    <p>Brute-force protection • Configurable attempt limits & lock duration</p>
+                  </div>
+                </div>
+                <div className="security-section-actions">
+                  <button className="btn-refresh" onClick={loadLoginAttempts}>
+                    <FaSync /> Refresh
+                  </button>
+                  <button className="btn-configure" onClick={openSecurityConfigModal}>
+                    <FaEdit /> Configure
+                  </button>
+                </div>
               </div>
 
               {/* Config overview cards */}
               <div className="security-config-grid">
                 <div className="config-card">
-                  <FaLock className="config-icon" />
-                  <div>
-                    <div className="config-value">{loginSecurityConfig.maxAttemptsBeforeWarning}</div>
-                    <div className="config-label">Attempts before warning</div>
+                  <div className="config-card-icon"><FaExclamationTriangle /></div>
+                  <div className="config-card-body">
+                    <div className="config-value">{loginSecurityConfig.warningThreshold}</div>
+                    <div className="config-label">Warning threshold</div>
                   </div>
                 </div>
                 <div className="config-card warning">
-                  <FaExclamationTriangle className="config-icon" />
-                  <div>
-                    <div className="config-value">{loginSecurityConfig.maxAttemptsBeforeLock}</div>
+                  <div className="config-card-icon"><FaLock /></div>
+                  <div className="config-card-body">
+                    <div className="config-value">{loginSecurityConfig.maxAttempts}</div>
                     <div className="config-label">Max attempts before lock</div>
                   </div>
                 </div>
                 <div className="config-card danger">
-                  <FaClock className="config-icon" />
-                  <div>
-                    <div className="config-value">{loginSecurityConfig.lockDurationMinutes}</div>
-                    <div className="config-label">Lock duration (minutes)</div>
+                  <div className="config-card-icon"><FaClock /></div>
+                  <div className="config-card-body">
+                    <div className="config-value">{loginSecurityConfig.lockDurationMinutes}<span className="unit">min</span></div>
+                    <div className="config-label">Lock duration</div>
                   </div>
                 </div>
                 <div className="config-card info">
-                  <FaMobileAlt className="config-icon" />
-                  <div>
+                  <div className="config-card-icon"><FaMobileAlt /></div>
+                  <div className="config-card-body">
                     <div className="config-value">{loginAttempts.filter(a => a.whatsappAlertSent).length}</div>
                     <div className="config-label">WhatsApp alerts sent</div>
                   </div>
@@ -2335,7 +2397,12 @@ const AdminPanel = () => {
 
               {/* Attempts list */}
               <div className="attempts-list-wrap">
-                <h3><FaUserShield /> Failed Login Attempts History</h3>
+                <div className="attempts-list-header">
+                  <h3><FaUserShield /> Failed Login Attempts History</h3>
+                  {loginAttempts.length > 0 && (
+                    <span className="attempts-count-pill">{loginAttempts.length} record{loginAttempts.length !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
 
                 {loginAttempts.length === 0 ? (
                   <div className="empty-state">
@@ -2362,14 +2429,16 @@ const AdminPanel = () => {
                         {loginAttempts.map((a) => {
                           const isLocked = a.locked;
                           const minsLeft = a.lockedUntil ? Math.max(0, Math.ceil((new Date(a.lockedUntil) - Date.now()) / 60000)) : 0;
+                          const dangerThreshold = loginSecurityConfig.maxAttempts;
+                          const warningThreshold = loginSecurityConfig.warningThreshold;
                           return (
                             <tr key={a.attemptKey} className={isLocked ? 'row-locked' : ''}>
                               <td><strong>{a.username}</strong></td>
                               <td><code>{a.ip}</code></td>
                               <td><small>{a.userAgent}</small></td>
                               <td>
-                                <span className={`attempts-badge ${a.failedAttempts >= 5 ? 'danger' : a.failedAttempts >= 3 ? 'warning' : ''}`}>
-                                  {a.failedAttempts}/5
+                                <span className={`attempts-badge ${a.failedAttempts >= dangerThreshold ? 'danger' : a.failedAttempts >= warningThreshold ? 'warning' : ''}`}>
+                                  {a.failedAttempts}/{dangerThreshold}
                                 </span>
                               </td>
                               <td>
@@ -2417,15 +2486,108 @@ const AdminPanel = () => {
                   <div>
                     <strong>How it works:</strong>
                     <ul>
-                      <li>After <strong>3 failed attempts</strong> from same IP+username → warning + soft WhatsApp ping</li>
-                      <li>After <strong>5 failed attempts</strong> → account locked for 30 minutes + full WhatsApp alert</li>
+                      <li>After <strong>{loginSecurityConfig.warningThreshold} failed attempts</strong> from same IP+username → warning + soft WhatsApp ping</li>
+                      <li>After <strong>{loginSecurityConfig.maxAttempts} failed attempts</strong> → account locked for {loginSecurityConfig.lockDurationMinutes} minutes + full WhatsApp alert</li>
                       <li>Successful login resets the counter instantly</li>
                       <li>Locks auto-expire — no manual action needed</li>
-                      <li>Use "Clear" button only if you're sure the activity was legitimate</li>
+                      <li>Use "Configure" button to change thresholds & lock duration</li>
                     </ul>
                   </div>
                 </div>
               </div>
+
+              {/* 🛡️ CONFIG EDIT MODAL */}
+              {showSecurityConfigModal && securityConfigForm && (
+                <div className="modal-overlay" onClick={() => !securityConfigSaving && setShowSecurityConfigModal(false)}>
+                  <div className="modal-content security-config-modal" onClick={(e) => e.stopPropagation()}>
+                    <button className="modal-close" onClick={() => setShowSecurityConfigModal(false)} disabled={securityConfigSaving}>&times;</button>
+                    <h3><FaShieldAlt /> Configure Login Security</h3>
+                    <p className="modal-subtitle">Adjust brute-force protection settings for admin login</p>
+
+                    <form onSubmit={saveSecurityConfig}>
+                      <div className="config-form-row">
+                        <label>
+                          <span className="config-form-label"><FaLock /> Max attempts before lock</span>
+                          <input
+                            type="number"
+                            min="3"
+                            max="20"
+                            value={securityConfigForm.maxAttempts}
+                            onChange={(e) => setSecurityConfigForm({ ...securityConfigForm, maxAttempts: parseInt(e.target.value, 10) })}
+                            required
+                          />
+                          <small className="field-hint">Between 3 and 20 (recommended: 5)</small>
+                        </label>
+                        <label>
+                          <span className="config-form-label"><FaExclamationTriangle /> Warning threshold</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max={securityConfigForm.maxAttempts - 1}
+                            value={securityConfigForm.warningThreshold}
+                            onChange={(e) => setSecurityConfigForm({ ...securityConfigForm, warningThreshold: parseInt(e.target.value, 10) })}
+                            required
+                          />
+                          <small className="field-hint">When to start showing "X attempts left" warning (must be less than max)</small>
+                        </label>
+                      </div>
+
+                      <div className="config-form-row">
+                        <label>
+                          <span className="config-form-label"><FaClock /> Lock duration (minutes)</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="1440"
+                            value={securityConfigForm.lockDurationMinutes}
+                            onChange={(e) => setSecurityConfigForm({ ...securityConfigForm, lockDurationMinutes: parseInt(e.target.value, 10) })}
+                            required
+                          />
+                          <small className="field-hint">Between 1 and 1440 (recommended: 30)</small>
+                        </label>
+                      </div>
+
+                      <div className="config-form-toggles">
+                        <label className="toggle-row">
+                          <input
+                            type="checkbox"
+                            checked={securityConfigForm.whatsappSoftAlert}
+                            onChange={(e) => setSecurityConfigForm({ ...securityConfigForm, whatsappSoftAlert: e.target.checked })}
+                          />
+                          <span>
+                            <strong>Soft WhatsApp alert</strong>
+                            <small>Send WhatsApp ping when warning threshold is hit</small>
+                          </span>
+                        </label>
+                        <label className="toggle-row">
+                          <input
+                            type="checkbox"
+                            checked={securityConfigForm.whatsappHardAlert}
+                            onChange={(e) => setSecurityConfigForm({ ...securityConfigForm, whatsappHardAlert: e.target.checked })}
+                          />
+                          <span>
+                            <strong>Hard WhatsApp alert</strong>
+                            <small>Send full WhatsApp alert when account gets locked</small>
+                          </span>
+                        </label>
+                      </div>
+
+                      <div className="config-form-actions">
+                        <button type="button" className="btn-cancel" onClick={() => setShowSecurityConfigModal(false)} disabled={securityConfigSaving}>
+                          Cancel
+                        </button>
+                        <button type="submit" className="btn-save-config" disabled={securityConfigSaving}>
+                          {securityConfigSaving ? (
+                            <><FaSync className="spinner" /> Saving...</>
+                          ) : (
+                            <><FaSave /> Save Settings</>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>
