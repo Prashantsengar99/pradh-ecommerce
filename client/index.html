@@ -1,52 +1,87 @@
+
 <!doctype html>
-<html lang="en">
+<html lang="en-IN">
   <head>
     <meta charset="UTF-8" />
 
-    <!-- 🔴 GOOGLE SEARCH CONSOLE VERIFICATION — ye line Google se copy karke paste karni hai -->
-<meta name="google-site-verification" content="qg1gCMK0FQu-zlxKA9TKX2sFrODl4_CccmIC0zaL8ac" />
+    <!-- Google Search Console Verification -->
+    <meta
+      name="google-site-verification"
+      content="qg1gCMK0FQu-zlxKA9TKX2sFrODl4_CccmIC0zaL8ac"
+    />
+
+    <!-- Viewport -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+
+    <!-- Primary SEO -->
+    <title>PRADH DESI FUEL | Premium Desi Nutrition</title>
+
+    <meta
+      name="description"
+      content="Discover PRADH DESI FUEL, a desi nutrition blend made with roasted chana, almonds, cashews and traditional ingredients. Without refined white sugar."
+    />
+
+    <meta name="author" content="PRADH DESI FUEL" />
+    <meta name="theme-color" content="#A67C2E" />
+
+    <!-- Canonical URL -->
+    <link
+      rel="canonical"
+      href="https://pradh-ecommerce.vercel.app/"
+    />
 
     <!-- Favicon -->
     <link rel="icon" type="image/jpeg" href="/logo.jpeg" />
     <link rel="apple-touch-icon" href="/logo.jpeg" />
 
-    <!-- ✅ Viewport — mobile-first -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover"
-    />
-
-    <!-- ✅ SEO + Social -->
-    <title>PRADH DESI FUEL | Premium Desi Nutrition</title>
-    <meta
-      name="description"
-      content="PRADH Desi Fuel — Premium desi nutrition blend with roasted chana, almonds, cashews, ashwagandha & shatavari. 100% natural, no refined sugar."
-    />
-    <meta name="keywords" content="desi ghee, desi fuel, roasted chana, ashwagandha, shatavari, natural nutrition, premium nutrition blend, organic food india" />
-    <meta name="author" content="PRADH Desi Fuel" />
-    <meta name="theme-color" content="#A67C2E" />
-    <link rel="canonical" href="https://pradh-ecommerce.vercel.app/" />
-
-    <!-- ✅ iOS PWA -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="PRADH" />
-
-    <!-- ✅ Open Graph (WhatsApp/FB share) -->
-    <meta property="og:title" content="PRADH DESI FUEL | Premium Desi Nutrition" />
-    <meta property="og:description" content="100% natural desi nutrition blend. No refined sugar, no preservatives." />
-    <meta property="og:image" content="https://pradh-ecommerce.vercel.app/logo.jpeg" />
-    <meta property="og:url" content="https://pradh-ecommerce.vercel.app/" />
+    <!-- Open Graph / Facebook / WhatsApp -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="PRADH DESI FUEL" />
+    <meta
+      property="og:title"
+      content="PRADH DESI FUEL | Premium Desi Nutrition"
+    />
+    <meta
+      property="og:description"
+      content="Discover our desi nutrition blend made with roasted chana, almonds, cashews and traditional ingredients."
+    />
+    <meta
+      property="og:url"
+      content="https://pradh-ecommerce.vercel.app/"
+    />
+    <meta
+      property="og:image"
+      content="https://pradh-ecommerce.vercel.app/logo.jpeg"
+    />
+    <meta
+      property="og:image:alt"
+      content="PRADH DESI FUEL brand logo"
+    />
+    <meta property="og:locale" content="en_IN" />
 
-    <!-- ✅ Twitter Card -->
+    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="PRADH DESI FUEL | Premium Desi Nutrition" />
-    <meta name="twitter:description" content="100% natural desi nutrition blend. No refined sugar, no preservatives." />
-    <meta name="twitter:image" content="https://pradh-ecommerce.vercel.app/logo.jpeg" />
+    <meta
+      name="twitter:title"
+      content="PRADH DESI FUEL | Premium Desi Nutrition"
+    />
+    <meta
+      name="twitter:description"
+      content="Discover PRADH DESI FUEL, a desi nutrition blend made with roasted grains, nuts and traditional ingredients."
+    />
+    <meta
+      name="twitter:image"
+      content="https://pradh-ecommerce.vercel.app/logo.jpeg"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="PRADH DESI FUEL brand logo"
+    />
 
-    <!-- ✅ Structured Data — Organization -->
+    <!-- Organization Structured Data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -54,9 +89,17 @@
       "name": "PRADH DESI FUEL",
       "url": "https://pradh-ecommerce.vercel.app/",
       "logo": "https://pradh-ecommerce.vercel.app/logo.jpeg",
-      "description": "Premium desi nutrition blend with roasted chana, almonds, cashews, ashwagandha & shatavari. 100% natural, no refined sugar."
+      "description": "Desi nutrition blend made with roasted chana, almonds, cashews and traditional ingredients."
     }
     </script>
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="PRADH" />
 
     <!-- Font Awesome -->
     <link
@@ -64,9 +107,10 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
     />
 
-    <!-- Razorpay SDK -->
+    <!-- Razorpay SDK: Preserved for payment functionality -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>

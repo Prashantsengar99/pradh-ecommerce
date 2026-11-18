@@ -145,6 +145,137 @@ const ProductDetail = () => {
     loadProduct();
   }, [id]);
 
+
+
+  // ============================================
+  // DYNAMIC PRODUCT SEO
+  // ============================================
+  useEffect(() => {
+    if (!product) return;
+
+    const siteUrl = 'https://pradh-ecommerce.vercel.app';
+    const pageUrl = `${siteUrl}/product/${encodeURIComponent(id)}`;
+
+    const cleanDescription = (
+      product.description ||
+      `${product.name} - Explore PRADH DESI FUEL products.`
+    ).replace(/\s+/g, ' ').trim().slice(0, 300);
+
+    const imageUrl = product.image
+      ? new URL(product.image, siteUrl).href
+      : `${siteUrl}/logo.jpeg`;
+
+    // Update page title
+    document.title = `${product.name} | PRADH DESI FUEL`;
+
+    // Helper: Update or create meta tags
+    const setMeta = (attribute, key, content) => {
+      let element = document.head.querySelector(
+        `meta[${attribute}="${key}"]`
+      );
+
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(attribute, key);
+        document.head.appendChild(element);
+      }
+
+      element.setAttribute('content', content);
+    };
+
+    // Meta description
+    setMeta('name', 'description', cleanDescription);
+
+    // Robots
+    setMeta('name', 'robots', 'index, follow');
+
+    // Open Graph
+    setMeta('property', 'og:type', 'product');
+    setMeta('property', 'og:title', `${product.name} | PRADH DESI FUEL`);
+    setMeta('property', 'og:description', cleanDescription);
+    setMeta('property', 'og:url', pageUrl);
+    setMeta('property', 'og:image', imageUrl);
+    setMeta('property', 'og:site_name', 'PRADH DESI FUEL');
+
+    // Twitter
+    setMeta('name', 'twitter:card', 'summary_large_image');
+    setMeta('name', 'twitter:title', `${product.name} | PRADH DESI FUEL`);
+    setMeta('name', 'twitter:description', cleanDescription);
+    setMeta('name', 'twitter:image', imageUrl);
+
+    // Canonical URL
+    let canonical = document.head.querySelector(
+      'link[rel="canonical"]'
+    );
+
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+
+    canonical.setAttribute('href', pageUrl);
+
+    // Product Structured Data
+    const productSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description: cleanDescription,
+      image: product.images?.length
+        ? product.images.map((img) => new URL(img, siteUrl).href)
+        : [imageUrl],
+      sku: product.sku && product.sku !== 'N/A'
+        ? product.sku
+        : undefined,
+      category: product.category,
+      brand: {
+        '@type': 'Brand',
+        name: 'PRADH DESI FUEL',
+      },
+      offers: {
+        '@type': 'Offer',
+        url: pageUrl,
+        priceCurrency: 'INR',
+        price: Number(product.price).toFixed(2),
+        availability: product.stock > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
+        itemCondition: 'https://schema.org/NewCondition',
+      },
+    };
+
+    // Include ratings only when actual reviews exist
+    if (reviewsData.total > 0 && reviewsData.avgRating > 0) {
+      productSchema.aggregateRating = {
+        '@type': 'AggregateRating',
+        ratingValue: Number(reviewsData.avgRating).toFixed(1),
+        reviewCount: reviewsData.total,
+        bestRating: 5,
+        worstRating: 1,
+      };
+    }
+
+    let schemaScript = document.getElementById(
+      'pradh-product-schema'
+    );
+
+    if (!schemaScript) {
+      schemaScript = document.createElement('script');
+      schemaScript.id = 'pradh-product-schema';
+      schemaScript.type = 'application/ld+json';
+      document.head.appendChild(schemaScript);
+    }
+
+    schemaScript.textContent = JSON.stringify(productSchema);
+
+    return () => {
+      // Remove only product-specific structured data
+      document.getElementById('pradh-product-schema')?.remove();
+    };
+  }, [product, id, reviewsData]);
+
+
   const fetchReviews = async () => {
     if (!id) return;
     setReviewsLoading(true);

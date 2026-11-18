@@ -77,6 +77,99 @@ const Home = () => {
 
   const TEXTS = ['Pure Desi Fuel', 'No Preservatives', '100% Natural Energy', 'Traditional Nutrition'];
 
+
+  // ============================================
+  // HOMEPAGE SEO
+  // ============================================
+  useEffect(() => {
+    const siteUrl = 'https://pradh-ecommerce.vercel.app';
+    const pageUrl = `${siteUrl}/`;
+
+    const seoTitle = 'PRADH DESI FUEL | Traditional Indian Nutrition Blends';
+
+    const seoDescription =
+      'Explore PRADH DESI FUEL traditional nutrition blends made with roasted grains, nuts, seeds and selected ingredients. Discover our product range and shop online.';
+
+    // Update browser title
+    document.title = seoTitle;
+
+    // Create or update meta tags
+    const setMeta = (attribute, key, content) => {
+      let element = document.head.querySelector(
+        `meta[${attribute}="${key}"]`
+      );
+
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(attribute, key);
+        document.head.appendChild(element);
+      }
+
+      element.setAttribute('content', content);
+    };
+
+    // Basic SEO
+    setMeta('name', 'description', seoDescription);
+    setMeta('name', 'robots', 'index, follow');
+    setMeta('name', 'author', 'PRADH DESI FUEL');
+
+    // Open Graph SEO
+    setMeta('property', 'og:type', 'website');
+    setMeta('property', 'og:title', seoTitle);
+    setMeta('property', 'og:description', seoDescription);
+    setMeta('property', 'og:url', pageUrl);
+    setMeta('property', 'og:image', `${siteUrl}/logo.jpeg`);
+    setMeta('property', 'og:site_name', 'PRADH DESI FUEL');
+    setMeta('property', 'og:locale', 'en_IN');
+
+    // Twitter SEO
+    setMeta('name', 'twitter:card', 'summary_large_image');
+    setMeta('name', 'twitter:title', seoTitle);
+    setMeta('name', 'twitter:description', seoDescription);
+    setMeta('name', 'twitter:image', `${siteUrl}/logo.jpeg`);
+
+    // Canonical URL
+    let canonical = document.head.querySelector(
+      'link[rel="canonical"]'
+    );
+
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+
+    canonical.setAttribute('href', pageUrl);
+
+    // WebSite structured data
+    const websiteSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'PRADH DESI FUEL',
+      url: `${siteUrl}/`,
+      description: seoDescription,
+      inLanguage: 'en-IN',
+    };
+
+    let schemaScript = document.getElementById(
+      'pradh-website-schema'
+    );
+
+    if (!schemaScript) {
+      schemaScript = document.createElement('script');
+      schemaScript.id = 'pradh-website-schema';
+      schemaScript.type = 'application/ld+json';
+      document.head.appendChild(schemaScript);
+    }
+
+    schemaScript.textContent = JSON.stringify(websiteSchema);
+
+    return () => {
+      document.getElementById('pradh-website-schema')?.remove();
+    };
+  }, []);
+
+
   // ✅ Fetch announcement settings from backend (admin-controlled)
   useEffect(() => {
     const loadAnnouncement = async () => {
